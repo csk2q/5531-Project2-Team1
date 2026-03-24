@@ -5,12 +5,11 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 const Login = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [isHovered, setIsHovered] = useState(false); // For a button effect
+  const [isHovered, setIsHovered] = useState(false); 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // FOR TESTING
     if (username === 'admin' && password === '123') {
         onLogin({ name: 'Admin User', role: 'admin' });
         return;
