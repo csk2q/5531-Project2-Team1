@@ -10,7 +10,7 @@ from app import File, db
 
 fileDownloadRoute = Blueprint("fileDownloadRoute", __name__)
 
-@fileDownloadRoute.route("/download/<int:file_id>", methods=["GET"])
+@fileDownloadRoute.route("/api/storage/file/download/<int:file_id>", methods=["GET"])
 def download_file(file_id):
     file = File.query.get(file_id)
     try:

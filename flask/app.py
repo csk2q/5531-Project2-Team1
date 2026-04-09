@@ -19,6 +19,8 @@ if not os.path.exists(UPLOAD_FOLDER):
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 db = SQLAlchemy(app)
+with app.app_context():
+    db.create_all()  # creates app.db + tables
 
 # ---------------- MODELS ---------------- #
 
@@ -115,8 +117,6 @@ app.register_blueprint(routeStorage)
 
 # ---------------- RUN APP ---------------- #
 
+# Note this does not run if using 'flask run'
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()  # creates app.db + tables
-
     app.run(debug=True)
