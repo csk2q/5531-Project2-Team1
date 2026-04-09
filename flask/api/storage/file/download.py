@@ -6,12 +6,16 @@ from flask import send_from_directory
 
 from flask import Blueprint
 
+from app import File, db
+
 fileDownloadRoute = Blueprint("fileDownloadRoute", __name__)
 
-@fileDownloadRoute.route("/api/storage/file/download/<fileID>", methods=["GET"])
-def download_file(fileID):
+@fileDownloadRoute.route("/download/<int:file_id>", methods=["GET"])
+def download_file(file_id):
+    file = File.query.get(file_id)
     try:
         # as_attachment=True forces the browser to download it instead of opening it
-        return send_from_directory(current_app.config['UPLOAD_FOLDER'], fileID, as_attachment=True)
-    except FileNotFoundError:
+        return send_from_directory(current_app.config['UPLOAD_FOLDER'], file.path, as_attachment=True)
+    # except FileNotFoundError:
+    except:
         return jsonify({"message": "File not found"}), 404

@@ -6,6 +6,8 @@ from flask import send_from_directory
 
 from flask import Blueprint
 
+from app import File, db
+
 fileUploadRoute = Blueprint("fileUploadRoute", __name__)
 
 @fileUploadRoute.route("/api/storage/file/upload", methods=["POST"])
@@ -24,7 +26,19 @@ def upload_file():
 
     # security measure to prevent directory traversal attacks
     filename = secure_filename(file.filename)
-    file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
+
+    path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
+
+    file.save(path)
+
+    new_file = File(
+        filename=filename,
+        path=path,
+        size=os.path.getsize(path)
+    )
+
+    db.session.add(new_file)
+    db.session.commit()
     
     return jsonify({"message": f"Successfully uploaded {filename}"}), 200
 
