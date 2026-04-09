@@ -84,69 +84,34 @@ def login():
 
 # -------- FILE STORAGE -------- #
 
-@app.route("/upload", methods=["POST"])
-def upload_file():
-    if "file" not in request.files:
-        return jsonify({"message": "No file part"}), 400
 
-    file = request.files["file"]
+# Register file routes
+from api.storage.file.about import fileAboutRoute
+app.register_blueprint(fileAboutRoute)
+from api.storage.file.delete import fileDeleteRoute
+app.register_blueprint(fileDeleteRoute)
+from api.storage.file.download import fileDownloadRoute
+app.register_blueprint(fileDownloadRoute)
+from api.storage.file.rename import fileRenameRoute
+app.register_blueprint(fileRenameRoute)
+from api.storage.file.upload import fileUploadRoute
+app.register_blueprint(fileUploadRoute)
 
-    if file.filename == "":
-        return jsonify({"message": "No selected file"}), 400
+# Register folder routes
+from api.storage.folder.list import folderListRoute
+app.register_blueprint(folderListRoute)
+from api.storage.folder.listHomeFolder import folderListHomeRoute
+app.register_blueprint(folderListHomeRoute)
 
-    filename = secure_filename(file.filename)
-    path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-
-    file.save(path)
-
-    new_file = File(
-        filename=filename,
-        path=path,
-        size=os.path.getsize(path)
-    )
-
-    db.session.add(new_file)
-    db.session.commit()
-
-    return jsonify({"message": f"Uploaded {filename}"}), 200
-
-
-@app.route("/files", methods=["GET"])
-def list_files():
-    files = File.query.all()
-
-    return jsonify([
-        {
-            "id": f.id,
-            "name": f.filename,
-            "size": f.size
-        }
-        for f in files
-    ])
+# Register monitoring routes
+from api.monitoring.cpu import routeCPU
+app.register_blueprint(routeCPU)
+from api.monitoring.memory import routeMemory
+app.register_blueprint(routeMemory)
+from api.monitoring.storage import routeStorage
+app.register_blueprint(routeStorage)
 
 
-@app.route("/delete/<int:file_id>", methods=["DELETE"])
-def delete_file(file_id):
-    file = File.query.get(file_id)
-
-    if not file:
-        return jsonify({"message": "File not found"}), 404
-
-    if os.path.exists(file.path):
-        os.remove(file.path)
-
-    db.session.delete(file)
-    db.session.commit()
-
-    return jsonify({"message": "Deleted successfully"})
-
-
-@app.route("/download/<int:file_id>", methods=["GET"])
-def download_file(file_id):
-    file = File.query.get(file_id)
-
-    if not file:
-        return jsonify({"message": "File not found"}), 404
 
     return send_from_directory(
         app.config["UPLOAD_FOLDER"],
