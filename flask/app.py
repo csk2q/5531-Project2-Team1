@@ -113,13 +113,6 @@ app.register_blueprint(routeStorage)
 
 
 
-    return send_from_directory(
-        app.config["UPLOAD_FOLDER"],
-        os.path.basename(file.path),
-        as_attachment=True
-    )
-
-
 # ---------------- RUN APP ---------------- #
 
 if __name__ == "__main__":
