@@ -6,7 +6,8 @@ from flask import send_from_directory
 
 from flask import Blueprint
 
-from app import File, db
+from db import db
+from models import File
 
 fileDownloadRoute = Blueprint("fileDownloadRoute", __name__)
 

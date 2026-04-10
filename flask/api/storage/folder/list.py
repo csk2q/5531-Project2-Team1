@@ -6,7 +6,7 @@ from flask import send_from_directory
 
 from flask import Blueprint
 
-from app import File
+from models import File
 
 folderListRoute = Blueprint("folderListRoute", __name__)
 

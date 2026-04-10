@@ -1,5 +1,7 @@
 import os
 
+from flask import Flask, jsonify, request
+
 from db import db
 from flask_cors import CORS
 from models import File, User
@@ -18,6 +20,8 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 db.init_app(app)
+with app.app_context():
+    db.create_all()  # creates app.db + tables
 
 
 @app.route("/")
@@ -49,76 +53,6 @@ def login():
     data = request.get_json()
 
     user = User.query.filter_by(username=data.get("username")).first()
-
-    if user and user.check_password(data.get("password")):
-        return jsonify({"message": "Login successful"})
-
-    return jsonify({"message": "Invalid credentials"}), 401
-
-
-@app.route("/upload", methods=["POST"])
-def upload_file():
-    if "file" not in request.files:
-        return jsonify({"message": "No file part"}), 400
-
-    file = request.files["file"]
-
-    if file.filename == "":
-        return jsonify({"message": "No selected file"}), 400
-
-    filename = secure_filename(file.filename)
-    path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-
-    file.save(path)
-
-    new_file = File(
-        filename=filename,
-        path=path,
-        size=os.path.getsize(path),
-    )
-
-    db.session.add(new_file)
-    db.session.commit()
-
-    return jsonify({"message": f"Uploaded {filename}"}), 200
-
-
-@app.route("/files", methods=["GET"])
-def list_files():
-    files = File.query.all()
-
-    return jsonify([{"id": f.id, "name": f.filename, "size": f.size} for f in files])
-
-
-@app.route("/delete/<int:file_id>", methods=["DELETE"])
-def delete_file(file_id):
-    file = File.query.get(file_id)
-
-    if not file:
-        return jsonify({"message": "File not found"}), 404
-
-    if os.path.exists(file.path):
-        os.remove(file.path)
-
-    db.session.delete(file)
-    db.session.commit()
-
-    return jsonify({"message": "Deleted successfully"})
-
-
-@app.route("/download/<int:file_id>", methods=["GET"])
-def download_file(file_id):
-    file = File.query.get(file_id)
-
-    if not file:
-        return jsonify({"message": "File not found"}), 404
-
-    return send_from_directory(
-        app.config["UPLOAD_FOLDER"],
-        os.path.basename(file.path),
-        as_attachment=True,
-    )
-
 
     if user and user.check_password(data.get("password")):
         return jsonify({"message": "Login successful"})
