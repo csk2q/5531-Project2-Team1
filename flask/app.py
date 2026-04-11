@@ -75,6 +75,9 @@ app.register_blueprint(folderBlueprint)
 from api.monitoring import monitoringBlueprint
 app.register_blueprint(monitoringBlueprint)
 
+# Register backup routes
+from api.maintenance.backupRoutes import backupBlueprint
+app.register_blueprint(backupBlueprint)
 
 # Note this does not run if using 'flask run'
 if __name__ == "__main__":
