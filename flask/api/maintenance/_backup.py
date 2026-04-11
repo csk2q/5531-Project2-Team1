@@ -64,5 +64,6 @@ def backupSqlite() -> tuple[bool, Path | str]:
 
     return True, zipPath
     
-
+def overwriteSqlite(sourceBackup: Path):
+    pass
 
