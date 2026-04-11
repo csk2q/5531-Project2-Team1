@@ -1,19 +1,31 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from './Navbar';
 
 function Admin({ user, onLogout }) {
   const navigate = useNavigate();
 
-  const [users, setUsers] = useState([
-    { id: 1, name: "Morgan", username: "morgan", role: "admin" },
-    { id: 2, name: "Immanuel", username: "immanuel", role: "user" },
-    { id: 3, name: "Christian", username: "christian", role: "user" }
-  ]);
-  
+  const [users, setUsers] = useState([]);
   const [selected, setSelected] = useState(null);
-  const [form, setForm] = useState({ name: "", username: "", role: "user" });
+  const [form, setForm] = useState({ name: "", username: "", password: "", role: "user" });
   const [isNew, setIsNew] = useState(false);
+  const [statusMsg, setStatusMsg] = useState("");
+
+  const showStatus = (msg) => {
+    setStatusMsg(msg);
+    setTimeout(() => setStatusMsg(""), 3000);
+  };
+
+  const fetchUsers = () => {
+    fetch("http://127.0.0.1:5000/api/users/list")
+      .then((res) => res.json())
+      .then((data) => setUsers(Array.isArray(data) ? data : []))
+      .catch((err) => console.error("Error fetching users:", err));
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   if (user?.role !== "admin") {
     return (
@@ -26,34 +38,62 @@ function Admin({ user, onLogout }) {
     );
   }
 
-  const selectUser = (user) => {
-    setSelected(user);
-    setForm({ name: user.name, username: user.username, role: user.role });
+  const selectUser = (u) => {
+    setSelected(u);
+    setForm({ name: u.name, username: u.username, password: "", role: u.role });
     setIsNew(false);
   };
 
   const newUser = () => {
     setSelected(null);
-    setForm({ name: "", username: "", role: "user" });
+    setForm({ name: "", username: "", password: "", role: "user" });
     setIsNew(true);
   };
 
-  const saveUser = () => {
-    if (isNew) {
-      const newUser = { id: Date.now(), ...form };
-      setUsers([...users, newUser]);
-      selectUser(newUser);
-    } else {
-      setUsers(users.map(u => u.id === selected.id ? { ...u, ...form } : u));
-      selectUser({ ...selected, ...form });
+  const saveUser = async () => {
+    try {
+      if (isNew) {
+        const response = await fetch("http://127.0.0.1:5000/api/users/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
+        const data = await response.json();
+        showStatus(data.message || "User created.");
+      } else {
+        const response = await fetch("http://127.0.0.1:5000/api/users/modify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: selected.id, ...form }),
+        });
+        const data = await response.json();
+        showStatus(data.message || "User updated.");
+      }
+      fetchUsers();
+      setSelected(null);
+      setIsNew(false);
+      setForm({ name: "", username: "", password: "", role: "user" });
+    } catch (err) {
+      showStatus("Failed to save user.");
     }
   };
 
-  const deleteUser = () => {
-    if (selected) {
-      setUsers(users.filter(u => u.id !== selected.id));
+  const deleteUser = async () => {
+    if (!selected) return;
+    if (!window.confirm(`Are you sure you want to delete ${selected.username}?`)) return;
+    try {
+      const response = await fetch("http://127.0.0.1:5000/api/users/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: selected.id }),
+      });
+      const data = await response.json();
+      showStatus(data.message || "User deleted.");
+      fetchUsers();
       setSelected(null);
-      setForm({ name: "", username: "", role: "user" });
+      setForm({ name: "", username: "", password: "", role: "user" });
+    } catch (err) {
+      showStatus("Failed to delete user.");
     }
   };
 
@@ -88,10 +128,12 @@ function Admin({ user, onLogout }) {
                 <button onClick={newUser} style={s.newBtn}>+ New User</button>
             </div>
             <div style={s.userDetails}>
-                {selected ? (
+                {statusMsg && <p style={{ color: "#16a34a", fontWeight: "600", fontSize: "13px" }}>{statusMsg}</p>}
+                {(selected || isNew) ? (
                     <>
                         <input placeholder="Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={s.input} />
                         <input placeholder="Username" value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} style={s.input} />
+                        <input placeholder={isNew ? "Password" : "New password (leave blank to keep)"} type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} style={s.input} />
                         <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} style={s.input}>
                             <option value="user">User</option>
                             <option value="admin">Admin</option>

@@ -10,25 +10,64 @@ function Settings ({ user, onLogout }) {
     });
 
     const [saved, setSaved] = React.useState(false);
+    const [backups, setBackups] = React.useState([]);
 
-    const [backups, setBackups] = React.useState([
-        { id: 1, name: 'Backup-2026-04-08.zip', date: '2026-04-08 02:00', size: '1.2GB' },
-        { id: 2, name: 'Backup-2026-04-07.zip', date: '2026-04-07 03:00', size: '1.1GB' },
-        { id: 3, name: 'Backup-2026-04-06.zip', date: '2026-04-06 04:00', size: '1.0GB' }
-    ]);
-
-    const saveSchedule = () => {
-      //SWAP WITH BACKEND CALL
-      console.log('Saving schedule:', schedule);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+    const fetchBackups = () => {
+      fetch("http://127.0.0.1:5000/api/maintenance/backups/list")
+        .then((res) => res.json())
+        .then((data) => setBackups(Array.isArray(data) ? data : []))
+        .catch((err) => console.error("Error fetching backups:", err));
     };
 
-    const restoreBackup = (name) => {
-        //SWAP WITH BACKEND CALL
-        if (window.confirm(`Are you sure you want to restore ${name}? This will overwrite current data.`)) return;
-            console.log(`Restoring backup: ${name}`);
-            alert(`Restoring ${name}`);
+    React.useEffect(() => {
+      fetchBackups();
+    }, []);
+
+    const saveSchedule = async () => {
+      try {
+        const response = await fetch("http://127.0.0.1:5000/api/maintenance/schedules/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(schedule),
+        });
+        const data = await response.json();
+        console.log("Schedule saved:", data);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+      } catch (err) {
+        console.error("Failed to save schedule:", err);
+      }
+    };
+
+    const restoreBackup = async (backup) => {
+        if (!window.confirm(`Are you sure you want to restore ${backup.name}? This will overwrite current data.`)) return;
+        try {
+          const response = await fetch("http://127.0.0.1:5000/api/maintenance/backups/restore", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: backup.id }),
+          });
+          const data = await response.json();
+          alert(data.message || `Restoring ${backup.name}`);
+        } catch (err) {
+          alert("Restore failed.");
+        }
+    };
+
+    const removeBackup = async (backup) => {
+      if (!window.confirm(`Are you sure you want to delete ${backup.name}?`)) return;
+      try {
+        const response = await fetch("http://127.0.0.1:5000/api/maintenance/backups/remove", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: backup.id }),
+        });
+        const data = await response.json();
+        alert(data.message || `Deleted ${backup.name}`);
+        fetchBackups();
+      } catch (err) {
+        alert("Delete failed.");
+      }
     };
 
     return (
@@ -63,15 +102,18 @@ function Settings ({ user, onLogout }) {
                 </div>
                 <div style={s.card}>
                     <h3 style={s.cardTitle}>Existing Backups</h3>
-                    {backups.map(backup => (
+                    {backups.length > 0 ? backups.map(backup => (
                         <div key={backup.id} style={s.backupRow}>
                             <div>
                                 <p style={{ margin: 0, fontWeight: "600" }}>{backup.name}</p>
                                 <p style={{ margin: 0, fontSize: "12px", color: "#7f8c8d" }}>{backup.date} - {backup.size}</p>
                             </div>
-                            <button onClick={() => restoreBackup(backup.name)} style={s.restoreBtn}>Restore</button>
+                            <div>
+                                <button onClick={() => restoreBackup(backup)} style={s.restoreBtn}>Restore</button>
+                                <button onClick={() => removeBackup(backup)} style={{ ...s.restoreBtn, color: "red", marginLeft: "8px" }}>Delete</button>
+                            </div>
                         </div>
-                    ))}
+                    )) : <p style={{ color: "#888", fontSize: "13px" }}>No backups found.</p>}
                 </div>
              </div>
         </div>

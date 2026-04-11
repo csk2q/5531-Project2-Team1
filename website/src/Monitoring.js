@@ -3,12 +3,12 @@ import Navbar from './Navbar';
 
 // Placeholder monitoring page
 function Monitoring({ user, onLogout }) {
-  const [stats, setStats] = useState({ 
-    cpu: 21, 
-    disk_total: 200,
-    disk_used: 56,
-    ram_used: 6.3,
-    ram_total: 16,
+  const [stats, setStats] = useState({
+    cpu: 0,
+    disk_total: 0,
+    disk_used: 0,
+    ram_used: 0,
+    ram_total: 0,
   });
 
   const [logs, setLogs] = useState([
@@ -18,8 +18,36 @@ function Monitoring({ user, onLogout }) {
   ]);
 
   useEffect(() => {
-    // BACKEND PLACEHOLDER NEED REAL STUFF HERE :)
-    }, []);
+    const fetchStats = async () => {
+      try {
+        const [cpuRes, memRes, storageRes] = await Promise.all([
+          fetch("http://127.0.0.1:5000/api/monitoring/cpu"),
+          fetch("http://127.0.0.1:5000/api/monitoring/memory"),
+          fetch("http://127.0.0.1:5000/api/monitoring/storage"),
+        ]);
+
+        const cpu     = await cpuRes.json();
+        const mem     = await memRes.json();
+        const storage = await storageRes.json();
+
+        const GB = 1024 ** 3;
+
+        setStats({
+          cpu:        cpu.cpu_system_percent,
+          ram_used:   parseFloat((mem.system_used  / GB).toFixed(1)),
+          ram_total:  parseFloat((mem.system_total / GB).toFixed(1)),
+          disk_used:  parseFloat((storage.used     / GB).toFixed(1)),
+          disk_total: parseFloat((storage.total    / GB).toFixed(1)),
+        });
+      } catch (err) {
+        console.error("Failed to fetch monitoring stats:", err);
+      }
+    };
+
+    fetchStats();
+    const interval = setInterval(fetchStats, 5000); // refresh every 5 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   const diskPercent = Math.round((stats.disk_used / stats.disk_total) * 100);
   const ramPercent  = Math.round((stats.ram_used  / stats.ram_total)  * 100);
