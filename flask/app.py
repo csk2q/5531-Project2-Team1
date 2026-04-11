@@ -60,38 +60,21 @@ def login():
     return jsonify({"message": "Invalid credentials"}), 401
 
 
-# -------- FILE STORAGE -------- #
 
+# Register routes from blueprints #
 
 # Register file routes
-from api.storage.file.about import fileAboutRoute
-app.register_blueprint(fileAboutRoute)
-from api.storage.file.delete import fileDeleteRoute
-app.register_blueprint(fileDeleteRoute)
-from api.storage.file.download import fileDownloadRoute
-app.register_blueprint(fileDownloadRoute)
-from api.storage.file.rename import fileRenameRoute
-app.register_blueprint(fileRenameRoute)
-from api.storage.file.upload import fileUploadRoute
-app.register_blueprint(fileUploadRoute)
+from api.storage.fileRoutes import fileBlueprint
+app.register_blueprint(fileBlueprint)
 
 # Register folder routes
-from api.storage.folder.list import folderListRoute
-app.register_blueprint(folderListRoute)
-from api.storage.folder.listHomeFolder import folderListHomeRoute
-app.register_blueprint(folderListHomeRoute)
+from api.storage.folderRoutes import folderBlueprint
+app.register_blueprint(folderBlueprint)
 
 # Register monitoring routes
-from api.monitoring.cpu import routeCPU
-app.register_blueprint(routeCPU)
-from api.monitoring.memory import routeMemory
-app.register_blueprint(routeMemory)
-from api.monitoring.storage import routeStorage
-app.register_blueprint(routeStorage)
+from api.monitoring import monitoringBlueprint
+app.register_blueprint(monitoringBlueprint)
 
-
-
-# ---------------- RUN APP ---------------- #
 
 # Note this does not run if using 'flask run'
 if __name__ == "__main__":
