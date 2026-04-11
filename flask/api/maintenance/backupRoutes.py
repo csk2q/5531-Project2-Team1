@@ -79,6 +79,9 @@ def upload_backup():
 
     path = os.path.join(backupFolder, filename)
 
+    if os.path.exists(path):
+        return jsonify({"message": f'The file "{filename}" already exists on the server. Delete it before uploading again.'}), 500
+
     file.save(path)
 
     return jsonify({"message": f'Successfully uploaded backup "{filename}"'}), 200
