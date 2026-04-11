@@ -1,5 +1,8 @@
 import os
 
+from api.monitoring import monitoringBlueprint
+from api.storage.fileRoutes import fileBlueprint
+from api.storage.folderRoutes import folderBlueprint
 from db import db
 from flask_cors import CORS
 from models import File, User
@@ -120,6 +123,22 @@ def download_file(file_id):
     )
 
 
+# Register routes from blueprints #
+
+# Register file routes
+
+app.register_blueprint(fileBlueprint)
+
+# Register folder routes
+
+app.register_blueprint(folderBlueprint)
+
+# Register monitoring routes
+
+app.register_blueprint(monitoringBlueprint)
+
+
+# Note this does not run if using 'flask run'
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
