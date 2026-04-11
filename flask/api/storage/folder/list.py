@@ -12,7 +12,7 @@ folderListRoute = Blueprint("folderListRoute", __name__)
 
 # Lists all files and folders in a given folder
 @folderListRoute.route("/api/storage/folder/list/<folderID>", methods=["GET"])
-def list_files():
+def list_folder_files(folderID):
     files = File.query.all()
 
     return jsonify([
