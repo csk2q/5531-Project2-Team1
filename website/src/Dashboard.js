@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Navbar from "./Navbar";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
 
 const UploadSection = ({ refreshFiles }) => {
   const [file, setFile] = useState(null);
@@ -12,10 +12,13 @@ const UploadSection = ({ refreshFiles }) => {
     formData.append("file", file);
     setStatus("Uploading...");
     try {
-      const response = await fetch("http://127.0.0.1:5000/api/storage/file/upload", {
-        method: "POST",
-        body: formData,
-      });
+      const response = await fetch(
+        "http://127.0.0.1:5000/api/storage/file/upload",
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
       const data = await response.json();
       setStatus(data.message);
       refreshFiles();
@@ -68,11 +71,15 @@ const Dashboard = ({ user, onLogout }) => {
   }, []);
 
   const handleDeleteFile = async (file) => {
-    if (!window.confirm(`Are you sure you want to delete ${file.name}?`)) return;
+    if (!window.confirm(`Are you sure you want to delete ${file.name}?`))
+      return;
     try {
-      const response = await fetch(`http://127.0.0.1:5000/api/storage/file/delete/${file.id}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `http://127.0.0.1:5000/api/storage/file/delete/${file.id}`,
+        {
+          method: "DELETE",
+        },
+      );
       const data = await response.json();
       alert(data.message);
       fetchContents();
@@ -84,11 +91,14 @@ const Dashboard = ({ user, onLogout }) => {
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return alert("Please enter a folder name.");
     try {
-      const response = await fetch("http://127.0.0.1:5000/api/storage/folder/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newFolderName }),
-      });
+      const response = await fetch(
+        "http://127.0.0.1:5000/api/storage/folder/create",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: newFolderName }),
+        },
+      );
       const data = await response.json();
       alert(data.message);
       setNewFolderName("");
@@ -99,13 +109,21 @@ const Dashboard = ({ user, onLogout }) => {
   };
 
   const handleDeleteFolder = async (folder) => {
-    if (!window.confirm(`Are you sure you want to delete the folder "${folder.name}"?`)) return;
+    if (
+      !window.confirm(
+        `Are you sure you want to delete the folder "${folder.name}"?`,
+      )
+    )
+      return;
     try {
-      const response = await fetch("http://127.0.0.1:5000/api/storage/folder/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: folder.id }),
-      });
+      const response = await fetch(
+        "http://127.0.0.1:5000/api/storage/folder/delete",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: folder.id }),
+        },
+      );
       const data = await response.json();
       alert(data.message);
       fetchContents();
@@ -117,11 +135,14 @@ const Dashboard = ({ user, onLogout }) => {
   const handleRenameFolder = async (folder) => {
     if (!renameValue.trim()) return alert("Please enter a new name.");
     try {
-      const response = await fetch("http://127.0.0.1:5000/api/storage/folder/rename", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: folder.id, newName: renameValue }),
-      });
+      const response = await fetch(
+        "http://127.0.0.1:5000/api/storage/folder/rename",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: folder.id, newName: renameValue }),
+        },
+      );
       const data = await response.json();
       alert(data.message);
       setRenamingFolder(null);
@@ -136,7 +157,6 @@ const Dashboard = ({ user, onLogout }) => {
     <div style={styles.dashboardContainer}>
       <Navbar user={user} onLogout={onLogout} />
       <main style={styles.mainContent}>
-
         {/* Folders */}
         <section style={styles.card}>
           <h3>Folders</h3>
@@ -149,17 +169,35 @@ const Dashboard = ({ user, onLogout }) => {
                       <input
                         value={renameValue}
                         onChange={(e) => setRenameValue(e.target.value)}
-                        style={{ flex: 1, padding: "4px 8px", borderRadius: "6px", border: "1px solid #ddd" }}
+                        style={{
+                          flex: 1,
+                          padding: "4px 8px",
+                          borderRadius: "6px",
+                          border: "1px solid #ddd",
+                        }}
                       />
-                      <button onClick={() => handleRenameFolder(folder)} style={styles.smallBtn}>Save</button>
-                      <button onClick={() => setRenamingFolder(null)} style={{ ...styles.smallBtn, color: "gray" }}>Cancel</button>
+                      <button
+                        onClick={() => handleRenameFolder(folder)}
+                        style={styles.smallBtn}
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setRenamingFolder(null)}
+                        style={{ ...styles.smallBtn, color: "gray" }}
+                      >
+                        Cancel
+                      </button>
                     </div>
                   ) : (
                     <>
                       <span>📁 {folder.name}</span>
                       <div>
                         <button
-                          onClick={() => { setRenamingFolder(folder.id); setRenameValue(folder.name); }}
+                          onClick={() => {
+                            setRenamingFolder(folder.id);
+                            setRenameValue(folder.name);
+                          }}
                           style={styles.smallBtn}
                         >
                           Rename
@@ -184,9 +222,17 @@ const Dashboard = ({ user, onLogout }) => {
               placeholder="New folder name"
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
-              style={{ flex: 1, padding: "6px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "14px" }}
+              style={{
+                flex: 1,
+                padding: "6px 10px",
+                borderRadius: "6px",
+                border: "1px solid #ddd",
+                fontSize: "14px",
+              }}
             />
-            <button onClick={handleCreateFolder} style={styles.actionBtn}>Create</button>
+            <button onClick={handleCreateFolder} style={styles.actionBtn}>
+              Create
+            </button>
           </div>
         </section>
 
@@ -233,13 +279,13 @@ const Dashboard = ({ user, onLogout }) => {
               System Online
             </p>
             <button
-              onClick={() => (navigate("/admin"))}
+              onClick={() => navigate("/admin")}
               style={styles.adminAction}
             >
               Manage User Accounts
             </button>
             <button
-              onClick={() => (navigate("/monitoring"))}
+              onClick={() => navigate("/monitoring")}
               style={styles.adminAction}
             >
               View System Monitoring
