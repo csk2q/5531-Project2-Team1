@@ -9,15 +9,6 @@ function Login({ onLogin }) {
     e.preventDefault();
     setError("");
 
-    if (username === 'admin' && password === '123') {
-      onLogin({ name: 'ADMIN', role: 'admin' });
-      return;
-    }
-    if (username === 'user' && password === '123') {
-      onLogin({ name: 'USER', role: 'user' });
-      return;
-    }
-
     try {
       const response = await fetch('http://127.0.0.1:5000/api/auth/login', {
         method: 'POST',

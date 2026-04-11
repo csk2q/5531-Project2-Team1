@@ -54,6 +54,21 @@ function Settings ({ user, onLogout }) {
         }
     };
 
+    const startBackup = async () => {
+      if (!window.confirm("Start a manual backup now?")) return;
+      try {
+        const response = await fetch("http://127.0.0.1:5000/api/maintenance/backups/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+        const data = await response.json();
+        alert(data.message || "Backup started.");
+        fetchBackups();
+      } catch (err) {
+        alert("Failed to start backup.");
+      }
+    };
+
     const removeBackup = async (backup) => {
       if (!window.confirm(`Are you sure you want to delete ${backup.name}?`)) return;
       try {
@@ -101,7 +116,10 @@ function Settings ({ user, onLogout }) {
                     {saved && <p style={s.successMsg}>Schedule saved successfully!</p>}
                 </div>
                 <div style={s.card}>
-                    <h3 style={s.cardTitle}>Existing Backups</h3>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                        <h3 style={{ ...s.cardTitle, margin: 0 }}>Existing Backups</h3>
+                        <button onClick={startBackup} style={s.btn}>+ Start Backup</button>
+                    </div>
                     {backups.length > 0 ? backups.map(backup => (
                         <div key={backup.id} style={s.backupRow}>
                             <div>

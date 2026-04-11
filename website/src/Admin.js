@@ -7,7 +7,7 @@ function Admin({ user, onLogout }) {
 
   const [users, setUsers] = useState([]);
   const [selected, setSelected] = useState(null);
-  const [form, setForm] = useState({ name: "", username: "", password: "", role: "user" });
+  const [form, setForm] = useState({ name: "", username: "", password: "", role: "user", permissions: { read: true, write: false, edit: false } });
   const [isNew, setIsNew] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
 
@@ -40,13 +40,19 @@ function Admin({ user, onLogout }) {
 
   const selectUser = (u) => {
     setSelected(u);
-    setForm({ name: u.name, username: u.username, password: "", role: u.role });
+    setForm({
+      name: u.name,
+      username: u.username,
+      password: "",
+      role: u.role,
+      permissions: u.permissions || { read: true, write: false, edit: false }
+    });
     setIsNew(false);
   };
 
   const newUser = () => {
     setSelected(null);
-    setForm({ name: "", username: "", password: "", role: "user" });
+    setForm({ name: "", username: "", password: "", role: "user", permissions: { read: true, write: false, edit: false } });
     setIsNew(true);
   };
 
@@ -138,6 +144,19 @@ function Admin({ user, onLogout }) {
                             <option value="user">User</option>
                             <option value="admin">Admin</option>
                         </select>
+                        <div style={s.permissionsBox}>
+                            <p style={{ margin: "0 0 8px", fontSize: "11px", fontWeight: "600", color: "#555", textTransform: "uppercase", letterSpacing: "0.05em" }}>Permissions</p>
+                            {["read", "write", "edit"].map((perm) => (
+                                <label key={perm} style={s.permLabel}>
+                                    <input
+                                        type="checkbox"
+                                        checked={form.permissions[perm] || false}
+                                        onChange={e => setForm({ ...form, permissions: { ...form.permissions, [perm]: e.target.checked } })}
+                                    />
+                                    {perm.charAt(0).toUpperCase() + perm.slice(1)}
+                                </label>
+                            ))}
+                        </div>
                         <button onClick={saveUser} style={s.saveBtn}>Save</button>
                         {!isNew && <button onClick={deleteUser} style={s.deleteBtn}>Delete</button>}
                     </>
@@ -165,8 +184,10 @@ const s = {
   field:      { display: "flex", flexDirection: "column", gap: "5px" },
   label:      { fontSize: "11px", fontWeight: "600", color: "#555", textTransform: "uppercase", letterSpacing: "0.05em" },
   input:      { padding: "9px 12px", border: "1px solid #e5e7eb", borderRadius: "8px", fontSize: "14px" },
-  saveBtn:    { flex: 1, padding: "10px", background: "#111", color: "white", border: "none", borderRadius: "8px", fontWeight: "600", cursor: "pointer", fontSize: "14px" },
-  deleteBtn:  { padding: "10px 16px", background: "#fef2f2", color: "#b91c1c", border: "1px solid #fca5a5", borderRadius: "8px", fontWeight: "600", cursor: "pointer", fontSize: "14px" },
+  saveBtn:       { flex: 1, padding: "10px", background: "#111", color: "white", border: "none", borderRadius: "8px", fontWeight: "600", cursor: "pointer", fontSize: "14px" },
+  deleteBtn:     { padding: "10px 16px", background: "#fef2f2", color: "#b91c1c", border: "1px solid #fca5a5", borderRadius: "8px", fontWeight: "600", cursor: "pointer", fontSize: "14px" },
+  permissionsBox:{ padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: "8px", display: "flex", flexDirection: "column", gap: "6px" },
+  permLabel:     { display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", cursor: "pointer" },
 };
 
 export default Admin;
