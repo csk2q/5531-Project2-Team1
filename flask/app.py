@@ -38,45 +38,45 @@ def home():
     return "Backend is running!"
 
 
-@app.route("/register", methods=["POST"])
-def register():
-    data = request.get_json()
+# @app.route("/register", methods=["POST"])
+# def register():
+#     data = request.get_json()
+#
+#     if not data or not data.get("username") or not data.get("password"):
+#         return jsonify({"message": "Missing username or password"}), 400
+#
+#     if User.query.filter_by(username=data["username"]).first():
+#         return jsonify({"message": "User already exists"}), 400
+#
+#     user = User(username=data["username"])
+#     user.set_password(data["password"])
+#
+#     db.session.add(user)
+#     db.session.commit()
+#
+#     return jsonify(
+#         {
+#             "message": "User created",
+#             "access_token": create_access_token(identity=user.username),
+#         }
+#     ), 201
 
-    if not data or not data.get("username") or not data.get("password"):
-        return jsonify({"message": "Missing username or password"}), 400
 
-    if User.query.filter_by(username=data["username"]).first():
-        return jsonify({"message": "User already exists"}), 400
-
-    user = User(username=data["username"])
-    user.set_password(data["password"])
-
-    db.session.add(user)
-    db.session.commit()
-
-    return jsonify(
-        {
-            "message": "User created",
-            "access_token": create_access_token(identity=user.username),
-        }
-    ), 201
-
-
-@app.route("/login", methods=["POST"])
-def login():
-    data = request.get_json()
-
-    user = User.query.filter_by(username=data.get("username")).first()
-
-    if user and user.check_password(data.get("password")):
-        return jsonify(
-            {
-                "message": "Login successful",
-                "access_token": create_access_token(identity=user.username),
-            }
-        )
-
-    return jsonify({"message": "Invalid credentials"}), 401
+# @app.route("/login", methods=["POST"])
+# def login():
+#     data = request.get_json()
+#
+#     user = User.query.filter_by(username=data.get("username")).first()
+#
+#     if user and user.check_password(data.get("password")):
+#         return jsonify(
+#             {
+#                 "message": "Login successful",
+#                 "access_token": create_access_token(identity=user.username),
+#             }
+#         )
+#
+#     return jsonify({"message": "Invalid credentials"}), 401
 
 
 @app.route("/upload", methods=["POST"])
