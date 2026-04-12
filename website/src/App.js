@@ -1,224 +1,25 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
 } from "react-router-dom";
+import { clearToken } from "./api";
+import Login from "./Login";
+import Dashboard from "./Dashboard";
+import Monitoring from "./Monitoring";
+import Admin from "./Admin";
+import Settings from "./Settings";
 
-const Login = ({ onLogin }) => {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [isHovered, setIsHovered] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    try {
-      const response = await fetch("http://127.0.0.1:5000/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        onLogin({ name: username, role: "user" });
-      } else {
-        alert(data.message);
-      }
-    } catch (error) {
-      alert("Invalid credentials or Backend is offline.");
-    }
-  };
-
-  return (
-    <div style={styles.authPage}>
-      <div style={styles.loginCard}>
-        <div style={styles.iconCircle}></div>
-        <h2 style={styles.loginTitle}>NAS Control Center</h2>
-        <p style={styles.loginSubtitle}>
-          Please sign in to manage your storage
-        </p>
-
-        <form onSubmit={handleSubmit} style={styles.formStack}>
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Username</label>
-            <input
-              style={styles.input}
-              placeholder="e.g. admin"
-              onChange={(e) => setUsername(e.target.value)}
-            />
-          </div>
-
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Password</label>
-            <input
-              style={styles.input}
-              type="password"
-              placeholder="••••••••"
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-
-          <button
-            type="submit"
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            style={{
-              ...styles.loginBtn,
-              backgroundColor: isHovered ? "#2980b9" : "#3498db",
-              transform: isHovered ? "translateY(-1px)" : "none",
-            }}
-          >
-            Sign In
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-const UploadSection = ({ refreshFiles }) => {
-  const [file, setFile] = useState(null);
-  const [status, setStatus] = useState("");
-
-  const handleUpload = async () => {
-    if (!file) return alert("Please select a file first!");
-    const formData = new FormData();
-    formData.append("file", file);
-    setStatus("Uploading...");
-
-    try {
-      const response = await fetch("http://127.0.0.1:5000/upload", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await response.json();
-      setStatus(data.message);
-      refreshFiles();
-    } catch (error) {
-      setStatus("Upload failed.");
-    }
-  };
-
-  return (
-    <div
-      style={{
-        marginTop: "20px",
-        padding: "15px",
-        background: "#eee",
-        borderRadius: "8px",
-      }}
-    >
-      <h4>Upload to NAS</h4>
-      <input type="file" onChange={(e) => setFile(e.target.files[0])} />
-      <button onClick={handleUpload} style={styles.actionBtn}>
-        Submit Upload
-      </button>
-      <p>{status}</p>
-    </div>
-  );
-};
-
-const Dashboard = ({ user, onLogout }) => {
-  const [files, setFiles] = useState([]);
-
-  const fetchFiles = () => {
-    fetch("http://127.0.0.1:5000/files")
-      .then((res) => res.json())
-      .then((data) => setFiles(data))
-      .catch((err) => console.error("Error:", err));
-  };
-
-  useEffect(() => {
-    fetchFiles();
-  }, []);
-
-  const handleDelete = async (fileId, fileName) => {
-    if (!window.confirm(`Are you sure you want to delete ${fileName}?`)) return;
-
-    try {
-      const response = await fetch(`http://127.0.0.1:5000/delete/${fileId}`, {
-        method: "DELETE",
-      });
-      const data = await response.json();
-      alert(data.message);
-      fetchFiles();
-    } catch (error) {
-      alert("Delete failed.");
-    }
-  };
-
-  return (
-    <div style={styles.dashboardContainer}>
-      <header style={styles.header}>
-        <h1>NAS Drive</h1>
-        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-          <span style={styles.userBadge}>
-            {user.name} ({user.role})
-          </span>
-          <button onClick={onLogout} style={styles.logoutBtn}>
-            Logout
-          </button>
-        </div>
-      </header>
-
-      <main style={styles.mainContent}>
-        <section style={styles.card}>
-          <h3>File Explorer</h3>
-          <ul style={styles.list}>
-            {files.length > 0 ? (
-              files.map((file) => (
-                <li key={file.id} style={styles.listItem}>
-                  <span>📄 {file.name}</span>
-                  <div>
-                    <button
-                      onClick={() =>
-                        window.open(`http://127.0.0.1:5000/download/${file.id}`)
-                      }
-                      style={styles.smallBtn}
-                    >
-                      Download
-                    </button>
-                    <button
-                      onClick={() => handleDelete(file.id, file.name)}
-                      style={{ ...styles.smallBtn, color: "red" }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </li>
-              ))
-            ) : (
-              <p>No files found on server.</p>
-            )}
-          </ul>
-          <UploadSection refreshFiles={fetchFiles} />
-        </section>
-
-        {user.role === "admin" && (
-          <section style={{ ...styles.card, borderTop: "5px solid red" }}>
-            <h3>Admin System Panel</h3>
-            <p>
-              <span style={{ color: "#2ecc71", marginRight: "5px" }}>●</span>
-              <strong>System Status:</strong> Online
-            </p>
-            <p>
-              <strong>Disk Space:</strong> 450GB / 1TB
-            </p>
-            <button style={styles.adminAction}>Manage User Accounts</button>
-            <button style={styles.adminAction}>View System Logs</button>
-          </section>
-        )}
-      </main>
-    </div>
-  );
-};
-
+//routes and auth state management
 export default function App() {
   const [user, setUser] = useState(null);
+
+  const handleLogout = () => {
+    clearToken();
+    setUser(null);
+  };
 
   return (
     <Router>
@@ -233,7 +34,37 @@ export default function App() {
           path="/dashboard"
           element={
             user ? (
-              <Dashboard user={user} onLogout={() => setUser(null)} />
+              <Dashboard user={user} onLogout={handleLogout} />
+            ) : (
+              <Navigate to="/" />
+            )
+          }
+        />
+        <Route
+          path="/monitoring"
+          element={
+            user ? (
+              <Monitoring user={user} onLogout={handleLogout} />
+            ) : (
+              <Navigate to="/" />
+            )
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            user ? (
+              <Admin user={user} onLogout={handleLogout} />
+            ) : (
+              <Navigate to="/" />
+            )
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            user ? (
+              <Settings user={user} onLogout={handleLogout} />
             ) : (
               <Navigate to="/" />
             )
