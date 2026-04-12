@@ -1,10 +1,17 @@
 import os
 
+from api.auth import authBlueprint
 from api.monitoring import monitoringBlueprint
 from api.storage.fileRoutes import fileBlueprint
 from api.storage.folderRoutes import folderBlueprint
 from db import db
 from flask_cors import CORS
+from flask_jwt_extended import (
+    JWTManager,
+    create_access_token,
+    get_jwt_identity,
+    jwt_required,
+)
 from models import File, User
 from werkzeug.utils import secure_filename
 
@@ -15,12 +22,15 @@ CORS(app)
 
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///app.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["JWT_SECRET_KEY"] = "change-this-in-prod"
+
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 db.init_app(app)
+jwt = JWTManager(app)
 
 
 @app.route("/")
@@ -44,7 +54,12 @@ def register():
     db.session.add(user)
     db.session.commit()
 
-    return jsonify({"message": "User created"}), 201
+    return jsonify(
+        {
+            "message": "User created",
+            "access_token": create_access_token(identity=user.username),
+        }
+    ), 201
 
 
 @app.route("/login", methods=["POST"])
@@ -54,7 +69,12 @@ def login():
     user = User.query.filter_by(username=data.get("username")).first()
 
     if user and user.check_password(data.get("password")):
-        return jsonify({"message": "Login successful"})
+        return jsonify(
+            {
+                "message": "Login successful",
+                "access_token": create_access_token(identity=user.username),
+            }
+        )
 
     return jsonify({"message": "Invalid credentials"}), 401
 
@@ -136,6 +156,7 @@ app.register_blueprint(folderBlueprint)
 # Register monitoring routes
 
 app.register_blueprint(monitoringBlueprint)
+app.register_blueprint(authBlueprint)
 
 
 # Note this does not run if using 'flask run'
