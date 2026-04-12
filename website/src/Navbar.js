@@ -112,11 +112,13 @@ const styles = {
   dropdownLogout: {
     width: "100%",
     padding: "7px",
-    background: "none",
-    border: "1px solid #ddd",
+    background: "#fef2f2",
+    color: "#b91c1c",
+    border: "1px solid #fca5a5",
     borderRadius: "6px",
     cursor: "pointer",
     fontSize: "13px",
+    fontWeight: "600",
   },
 };
 

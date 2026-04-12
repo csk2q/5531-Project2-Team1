@@ -53,18 +53,25 @@ const Dashboard = ({ user, onLogout }) => {
   const [newFolderName, setNewFolderName] = useState("");
   const [renamingFolder, setRenamingFolder] = useState(null);
   const [renameValue, setRenameValue] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
 
   const navigate = useNavigate();
 
   const fetchContents = () => {
+    setFetchError("");
     authFetch("/api/storage/folder/contents")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Server error");
+        return res.json();
+      })
       .then((data) => {
         const items = Array.isArray(data) ? data : [];
         setFolders(items.filter((i) => i.type === "folder"));
         setFiles(items.filter((i) => i.type !== "folder"));
       })
-      .catch((err) => console.error("Error:", err));
+      .catch(() => setFetchError("Could not load files. Is the server running?"))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -154,9 +161,24 @@ const Dashboard = ({ user, onLogout }) => {
     }
   };
 
+  if (loading) {
+    return (
+      <div style={styles.dashboardContainer}>
+        <Navbar user={user} onLogout={onLogout} />
+        <div style={{ padding: "40px", textAlign: "center", color: "#888" }}>
+          <div style={styles.spinner} />
+          <p>Loading files...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={styles.dashboardContainer}>
       <Navbar user={user} onLogout={onLogout} />
+      {fetchError && (
+        <div style={styles.errorBanner}>{fetchError}</div>
+      )}
       <main style={styles.mainContent}>
         {/* Folders */}
         <section style={styles.card}>
@@ -315,6 +337,22 @@ const styles = {
     background: "white",
     borderRadius: "8px",
     boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+  },
+  spinner: {
+    width: "32px",
+    height: "32px",
+    border: "3px solid #ddd",
+    borderTop: "3px solid #3b82f6",
+    borderRadius: "50%",
+    animation: "spin 0.8s linear infinite",
+    margin: "0 auto 12px",
+  },
+  errorBanner: {
+    background: "#fef2f2",
+    color: "#b91c1c",
+    padding: "12px 24px",
+    fontSize: "14px",
+    borderBottom: "1px solid #fca5a5",
   },
   list: { listStyle: "none", padding: 0 },
   listItem: {
