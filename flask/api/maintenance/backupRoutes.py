@@ -8,15 +8,14 @@ from flask import send_from_directory
 
 from flask import Blueprint
 
-from db import db
 from models import File
 
 from api.maintenance._backup import backupSqlite, backupFolder
 
+backupBlueprint = Blueprint("backupRoutes", __name__)
 
 ### TODO: These functions will need checks that the user is admin.
 
-backupBlueprint = Blueprint("backupRoutes", __name__)
 
 # list
 @backupBlueprint.route("/api/maintenance/backup/list", methods=["GET"])
@@ -41,20 +40,17 @@ def start_backup():
 # TODO NotYetImplemented
 
 # delete
-@backupBlueprint.route("/api/maintenance/backup/delete/<int:backup_filename>", methods=["DELETE"])
-def delete_file(backup_filename):
+@backupBlueprint.route("/api/maintenance/backup/delete/<string:backup_filename>", methods=["DELETE"])
+def delete_backup(backup_filename):
     file = secure_filename(backup_filename)
     if file.startswith('\\') or file.startswith('/'):
         file = file[1:]
 
     if not file:
-        return jsonify({"message": "Backup not found"}), 404
+        return jsonify({"message": "Backup file not found"}), 404
 
     if os.path.exists(file):
         os.remove(file)
-
-    db.session.delete(file)
-    db.session.commit()
 
     return jsonify({"message": f'Backup "{file}" deleted successfully!'})
 
@@ -65,13 +61,11 @@ def upload_backup():
     if 'file' not in request.files:
         return jsonify({"message": "No file part"}), 400
     
-    # If the user does not select a file, the browser submits an
-    # empty file without a filename.
+    # If the user does not select a file, the browser submits an empty file without a filename.
     file = request.files['file']
     if file.filename == '' or file.filename == None:
         return jsonify({"message": "No selected file"}), 400
 
-    # security measure to prevent directory traversal attacks
     filename = secure_filename(file.filename)
     
     if not (filename.startswith('backup-') and filename.endswith('.zip')):
@@ -85,3 +79,11 @@ def upload_backup():
     file.save(path)
 
     return jsonify({"message": f'Successfully uploaded backup "{filename}"'}), 200
+
+# download backup
+@backupBlueprint.route("/api/maintenance/backup/download/<string:file_id>", methods=["GET"])
+def download_backup(backupName):
+    try:
+        return send_from_directory(backupFolder, secure_filename(backupName), as_attachment=True)
+    except FileNotFoundError:
+        return jsonify({"message": f"The backup file \"{secure_filename(backupName)}\" was not found"}), 404
