@@ -64,6 +64,41 @@ def backupSqlite() -> tuple[bool, Path | str]:
 
     return True, zipPath
     
-def overwriteSqlite(sourceBackup: Path):
-    pass
+def overwriteSqlite(sourceBackupPath: Path):
+    dest_conn = sqlite3.connect(liveDbPath)
+    source_conn = sqlite3.connect(f'file:{sourceBackupPath}?mode=ro', uri=True)
+    try:
 
+        destCursor = dest_conn.cursor()
+        sourceCursor = source_conn.cursor()
+
+        # Note: If the tables don't exist in the destination db an error will be thrown later.
+        sourceCursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = [row[0] for row in sourceCursor.fetchall()]
+
+        for table in tables:
+            if table == 'sqlite_sequence':
+                continue # Skip internal sequence table
+            
+            # Delete existing rows
+            destCursor.execute(f'DELETE FROM {table}')
+            
+            sourceCursor.execute(f'SELECT * FROM {table}')
+            rows = sourceCursor.fetchall()
+            
+            if rows:
+                placeholders = ','.join(['?'] * len(rows[0]))
+                destCursor.executemany(f'INSERT INTO {table} VALUES ({placeholders})', rows)
+            else:
+                print(f"Table {table} is empty in backup.")
+
+        dest_conn.commit()
+        logger.info(f"Database restored from {sourceBackupPath}.")
+
+    except Exception as e:
+        logger.error("Database restore failed.", e)
+        dest_conn.rollback()
+        raise
+    finally:
+        dest_conn.close()
+        source_conn.close()

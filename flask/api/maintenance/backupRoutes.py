@@ -10,7 +10,7 @@ from flask import Blueprint
 
 from models import File
 
-from api.maintenance._backup import backupSqlite, backupFolder
+from api.maintenance._backup import backupSqlite, backupFolder, overwriteSqlite
 
 backupBlueprint = Blueprint("backupRoutes", __name__)
 
@@ -20,7 +20,7 @@ backupBlueprint = Blueprint("backupRoutes", __name__)
 # list
 @backupBlueprint.route("/api/maintenance/backup/list", methods=["GET"])
 def list_backups():
-    # pattern = r'^backup-\d{8}_\d{6}_\d{6}Z\.zip$'
+    # pattern = r'^backup-\d{8}_\d{6}_\d{6}Z\.zip$' # The number of digits might be incorrect.
     backupZips = [backupZip for backupZip in os.listdir(backupFolder) 
                   if backupZip.startswith('backup-') and backupZip.endswith('.zip')]
     
@@ -37,7 +37,22 @@ def start_backup():
         return jsonify({'message': 'Backup failed!', 'errorMessage': backupZipPath}), 500
 
 # restore
-# TODO NotYetImplemented
+@backupBlueprint.route("/api/maintenance/backup/restore/<string:backup_filename>", methods=["DELETE"])
+def restore_backup(backup_filename):
+    file = secure_filename(backup_filename)
+    if file.startswith('\\') or file.startswith('/'):
+        file = file[1:]
+
+    backupPath = Path(backupFolder, file)
+    if os.path.exists(backupPath):
+        return jsonify({"message": "Backup not found"}), 404
+
+
+    try:
+        overwriteSqlite(backupPath)
+        return jsonify({"message": f'Successfully restored from backup "{file}"'})
+    except Exception as e:
+        return jsonify({"message": f'Restore failed!', 'error': e}), 500
 
 # delete
 @backupBlueprint.route("/api/maintenance/backup/delete/<string:backup_filename>", methods=["DELETE"])
