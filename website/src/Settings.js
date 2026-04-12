@@ -1,5 +1,6 @@
 import React from "react";
 import Navbar from "./Navbar";
+import { authFetch } from "./api";
 
 function Settings({ user, onLogout }) {
   const [schedule, setSchedule] = React.useState({
@@ -13,7 +14,7 @@ function Settings({ user, onLogout }) {
   const [backups, setBackups] = React.useState([]);
 
   const fetchBackups = () => {
-    fetch("http://127.0.0.1:5000/api/maintenance/backups/list")
+    authFetch("/api/maintenance/backups/list")
       .then((res) => res.json())
       .then((data) => setBackups(Array.isArray(data) ? data : []))
       .catch((err) => console.error("Error fetching backups:", err));
@@ -25,8 +26,8 @@ function Settings({ user, onLogout }) {
 
   const saveSchedule = async () => {
     try {
-      const response = await fetch(
-        "http://127.0.0.1:5000/api/maintenance/schedules/create",
+      const response = await authFetch(
+        "/api/maintenance/schedules/create",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -50,8 +51,8 @@ function Settings({ user, onLogout }) {
     )
       return;
     try {
-      const response = await fetch(
-        "http://127.0.0.1:5000/api/maintenance/backups/restore",
+      const response = await authFetch(
+        "/api/maintenance/backups/restore",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -68,8 +69,8 @@ function Settings({ user, onLogout }) {
   const startBackup = async () => {
     if (!window.confirm("Start a manual backup now?")) return;
     try {
-      const response = await fetch(
-        "http://127.0.0.1:5000/api/maintenance/backups/start",
+      const response = await authFetch(
+        "/api/maintenance/backups/start",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -87,8 +88,8 @@ function Settings({ user, onLogout }) {
     if (!window.confirm(`Are you sure you want to delete ${backup.name}?`))
       return;
     try {
-      const response = await fetch(
-        "http://127.0.0.1:5000/api/maintenance/backups/remove",
+      const response = await authFetch(
+        "/api/maintenance/backups/remove",
         {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },

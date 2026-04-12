@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Navbar from "./Navbar";
 import { useNavigate } from "react-router-dom";
+import { authFetch } from "./api";
 
 const UploadSection = ({ refreshFiles }) => {
   const [file, setFile] = useState(null);
@@ -12,8 +13,8 @@ const UploadSection = ({ refreshFiles }) => {
     formData.append("file", file);
     setStatus("Uploading...");
     try {
-      const response = await fetch(
-        "http://127.0.0.1:5000/api/storage/file/upload",
+      const response = await authFetch(
+        "/api/storage/file/upload",
         {
           method: "POST",
           body: formData,
@@ -56,7 +57,7 @@ const Dashboard = ({ user, onLogout }) => {
   const navigate = useNavigate();
 
   const fetchContents = () => {
-    fetch("http://127.0.0.1:5000/api/storage/folder/contents")
+    authFetch("/api/storage/folder/contents")
       .then((res) => res.json())
       .then((data) => {
         const items = Array.isArray(data) ? data : [];
@@ -74,8 +75,8 @@ const Dashboard = ({ user, onLogout }) => {
     if (!window.confirm(`Are you sure you want to delete ${file.name}?`))
       return;
     try {
-      const response = await fetch(
-        `http://127.0.0.1:5000/api/storage/file/delete/${file.id}`,
+      const response = await authFetch(
+        `/api/storage/file/delete/${file.id}`,
         {
           method: "DELETE",
         },
@@ -91,8 +92,8 @@ const Dashboard = ({ user, onLogout }) => {
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return alert("Please enter a folder name.");
     try {
-      const response = await fetch(
-        "http://127.0.0.1:5000/api/storage/folder/create",
+      const response = await authFetch(
+        "/api/storage/folder/create",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -116,8 +117,8 @@ const Dashboard = ({ user, onLogout }) => {
     )
       return;
     try {
-      const response = await fetch(
-        "http://127.0.0.1:5000/api/storage/folder/delete",
+      const response = await authFetch(
+        "/api/storage/folder/delete",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -135,8 +136,8 @@ const Dashboard = ({ user, onLogout }) => {
   const handleRenameFolder = async (folder) => {
     if (!renameValue.trim()) return alert("Please enter a new name.");
     try {
-      const response = await fetch(
-        "http://127.0.0.1:5000/api/storage/folder/rename",
+      const response = await authFetch(
+        "/api/storage/folder/rename",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -248,7 +249,7 @@ const Dashboard = ({ user, onLogout }) => {
                     <button
                       onClick={() =>
                         window.open(
-                          `http://127.0.0.1:5000/api/storage/file/download/${file.id}`,
+                          `/api/storage/file/download/${file.id}`,
                         )
                       }
                       style={styles.smallBtn}

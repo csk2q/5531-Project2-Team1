@@ -1,5 +1,6 @@
 import { useState, useEffect, use } from "react";
 import Navbar from "./Navbar";
+import { authFetch } from "./api";
 
 // Placeholder monitoring page
 function Monitoring({ user, onLogout }) {
@@ -21,9 +22,9 @@ function Monitoring({ user, onLogout }) {
     const fetchStats = async () => {
       try {
         const [cpuRes, memRes, storageRes] = await Promise.all([
-          fetch("http://127.0.0.1:5000/api/monitoring/cpu"),
-          fetch("http://127.0.0.1:5000/api/monitoring/memory"),
-          fetch("http://127.0.0.1:5000/api/monitoring/storage"),
+          authFetch("/api/monitoring/cpu"),
+          authFetch("/api/monitoring/memory"),
+          authFetch("/api/monitoring/storage"),
         ]);
 
         const cpu = await cpuRes.json();

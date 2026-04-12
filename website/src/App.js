@@ -5,6 +5,7 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
+import { clearToken } from "./api";
 import Login from "./Login";
 import Dashboard from "./Dashboard";
 import Monitoring from "./Monitoring";
@@ -14,6 +15,11 @@ import Settings from "./Settings";
 //routes and auth state management
 export default function App() {
   const [user, setUser] = useState(null);
+
+  const handleLogout = () => {
+    clearToken();
+    setUser(null);
+  };
 
   return (
     <Router>
@@ -28,7 +34,7 @@ export default function App() {
           path="/dashboard"
           element={
             user ? (
-              <Dashboard user={user} onLogout={() => setUser(null)} />
+              <Dashboard user={user} onLogout={handleLogout} />
             ) : (
               <Navigate to="/" />
             )
@@ -38,7 +44,7 @@ export default function App() {
           path="/monitoring"
           element={
             user ? (
-              <Monitoring user={user} onLogout={() => setUser(null)} />
+              <Monitoring user={user} onLogout={handleLogout} />
             ) : (
               <Navigate to="/" />
             )
@@ -48,7 +54,7 @@ export default function App() {
           path="/admin"
           element={
             user ? (
-              <Admin user={user} onLogout={() => setUser(null)} />
+              <Admin user={user} onLogout={handleLogout} />
             ) : (
               <Navigate to="/" />
             )
@@ -58,7 +64,7 @@ export default function App() {
           path="/settings"
           element={
             user ? (
-              <Settings user={user} onLogout={() => setUser(null)} />
+              <Settings user={user} onLogout={handleLogout} />
             ) : (
               <Navigate to="/" />
             )

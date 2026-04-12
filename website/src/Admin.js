@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
+import { authFetch } from "./api";
 
 function Admin({ user, onLogout }) {
   const navigate = useNavigate();
@@ -23,7 +24,7 @@ function Admin({ user, onLogout }) {
   };
 
   const fetchUsers = () => {
-    fetch("http://127.0.0.1:5000/api/users/list")
+    authFetch("/api/users/list")
       .then((res) => res.json())
       .then((data) => setUsers(Array.isArray(data) ? data : []))
       .catch((err) => console.error("Error fetching users:", err));
@@ -71,7 +72,7 @@ function Admin({ user, onLogout }) {
   const saveUser = async () => {
     try {
       if (isNew) {
-        const response = await fetch("http://127.0.0.1:5000/api/users/create", {
+        const response = await authFetch("/api/users/create", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(form),
@@ -79,7 +80,7 @@ function Admin({ user, onLogout }) {
         const data = await response.json();
         showStatus(data.message || "User created.");
       } else {
-        const response = await fetch("http://127.0.0.1:5000/api/users/modify", {
+        const response = await authFetch("/api/users/modify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: selected.id, ...form }),
@@ -103,7 +104,7 @@ function Admin({ user, onLogout }) {
     )
       return;
     try {
-      const response = await fetch("http://127.0.0.1:5000/api/users/delete", {
+      const response = await authFetch("/api/users/delete", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: selected.id }),
