@@ -81,8 +81,6 @@ def rename_file(fileID):
 # upload
 @fileBlueprint.route("/api/storage/file/upload", methods=["POST"])
 def upload_file():
-    print(request)
-
     # check if the post request has the file part
     if 'file' not in request.files:
         return jsonify({"message": "No file part"}), 400
