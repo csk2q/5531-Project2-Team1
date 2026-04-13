@@ -90,8 +90,12 @@ class BackupSchedule(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     name = db.Column(db.String(100))
-    frequency = db.Column(db.String(50))
-    offset = db.Column(db.Integer)
+    start_date = db.Column(db.DateTime)
+
+    weeks = db.Column(db.Integer, default=0)
+    days = db.Column(db.Integer, default=1)
+    hours = db.Column(db.Integer, default=0)
+    seconds = db.Column(db.Integer, default=0)
 
 
 # -------- BACKUP --------
