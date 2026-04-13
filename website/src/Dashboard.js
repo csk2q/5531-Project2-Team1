@@ -6,43 +6,47 @@ import { authFetch } from "./api";
 const UploadSection = ({ refreshFiles }) => {
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState("");
+  const [statusType, setStatusType] = useState(""); // "success" | "error" | ""
 
   const handleUpload = async () => {
-    if (!file) return alert("Please select a file first!");
+    if (!file) {
+      setStatusType("error");
+      setStatus("Please select a file first.");
+      return;
+    }
     const formData = new FormData();
     formData.append("file", file);
     setStatus("Uploading...");
+    setStatusType("");
     try {
-      const response = await authFetch(
-        "/api/storage/file/upload",
-        {
-          method: "POST",
-          body: formData,
-        },
-      );
+      const response = await authFetch("/api/storage/file/upload", {
+        method: "POST",
+        body: formData,
+      });
       const data = await response.json();
-      setStatus(data.message);
-      refreshFiles();
-    } catch (error) {
+      setStatus(data.message || "Upload complete.");
+      setStatusType(response.ok ? "success" : "error");
+      if (response.ok) refreshFiles();
+    } catch {
       setStatus("Upload failed.");
+      setStatusType("error");
     }
   };
 
   return (
-    <div
-      style={{
-        marginTop: "20px",
-        padding: "15px",
-        background: "#eee",
-        borderRadius: "8px",
-      }}
-    >
-      <h4>Upload to NAS</h4>
-      <input type="file" onChange={(e) => setFile(e.target.files[0])} />
-      <button onClick={handleUpload} style={styles.actionBtn}>
-        Submit Upload
-      </button>
-      <p>{status}</p>
+    <div style={{ marginTop: "20px", padding: "15px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "8px" }}>
+      <h4 style={{ margin: "0 0 10px", fontSize: "14px", fontWeight: "600", color: "#374151" }}>Upload a File</h4>
+      <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+        <input type="file" onChange={(e) => setFile(e.target.files[0])} style={{ fontSize: "13px" }} />
+        <button onClick={handleUpload} style={styles.actionBtn}>
+          Upload
+        </button>
+      </div>
+      {status && (
+        <p style={{ margin: "8px 0 0", fontSize: "13px", color: statusType === "error" ? "#b91c1c" : statusType === "success" ? "#15803d" : "#64748b" }}>
+          {status}
+        </p>
+      )}
     </div>
   );
 };
@@ -62,7 +66,7 @@ const Dashboard = ({ user, onLogout }) => {
 
   const fetchContents = () => {
     setFetchError("");
-    authFetch("/api/storage/folder/list/0")
+    authFetch("/files")
       .then((res) => {
         if (!res.ok) throw new Error("Server error");
         return res.json();
@@ -79,14 +83,32 @@ const Dashboard = ({ user, onLogout }) => {
   }, []);
 
   const handleDeleteFile = async (file) => {
-    if (!window.confirm(`Delete ${file.name}?`)) return;
+    if (!window.confirm(`Delete "${file.name}"?`)) return;
     try {
-      const response = await authFetch(`/api/storage/file/delete/${file.id}`, { method: "DELETE" });
+      const response = await authFetch(`/delete/${file.id}`, { method: "DELETE" });
       const data = await response.json();
       showMsg(data.message || "File deleted.");
       fetchContents();
     } catch {
       showMsg("Delete failed.", "error");
+    }
+  };
+
+  const handleDownloadFile = async (file) => {
+    try {
+      const response = await authFetch(`/download/${file.id}`);
+      if (!response.ok) { showMsg("Download failed.", "error"); return; }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      showMsg("Download failed.", "error");
     }
   };
 
@@ -143,11 +165,7 @@ const Dashboard = ({ user, onLogout }) => {
                   </div>
                   <div>
                     <button
-                      onClick={() =>
-                        window.open(
-                          `/api/storage/file/download/${file.id}`,
-                        )
-                      }
+                      onClick={() => handleDownloadFile(file)}
                       style={styles.smallBtn}
                     >
                       Download
