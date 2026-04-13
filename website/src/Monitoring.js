@@ -7,7 +7,7 @@ function Monitoring({ user, onLogout }) {
   const [fetchError, setFetchError] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const [logs] = useState([
+  const [logs] = useState([   // Mock log data
     { time: "2026-04-08 1:00:00", level: "INFO", message: "Server started" },
     { time: "2026-04-08 1:05:00", level: "INFO", message: "User logged in" },
     { time: "2026-04-08 1:10:00", level: "WARN", message: "Disk usage above 80%" },
