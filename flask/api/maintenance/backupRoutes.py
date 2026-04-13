@@ -10,7 +10,7 @@ from flask import Blueprint
 
 from models import File
 
-from api.maintenance._backup import backupSqlite, backupFolder, overwriteSqlite
+from api.maintenance._backup import backupFull, backupFolder, restoreFull
 
 backupBlueprint = Blueprint("backupRoutes", __name__)
 
@@ -29,7 +29,7 @@ def list_backups():
 # start
 @backupBlueprint.route("/api/maintenance/backup/start", methods=["POST"])
 def start_backup():
-    success, backupZipPath = backupSqlite()
+    success, backupZipPath = backupFull()
 
     if (success):
         return jsonify({'message': 'Backup successful', 'path': str(backupZipPath)})
@@ -37,19 +37,18 @@ def start_backup():
         return jsonify({'message': 'Backup failed!', 'errorMessage': backupZipPath}), 500
 
 # restore
-@backupBlueprint.route("/api/maintenance/backup/restore/<string:backup_filename>", methods=["DELETE"])
+@backupBlueprint.route("/api/maintenance/backup/restore/<string:backup_filename>", methods=["POST"])
 def restore_backup(backup_filename):
     file = secure_filename(backup_filename)
     if file.startswith('\\') or file.startswith('/'):
         file = file[1:]
-
     backupPath = Path(backupFolder, file)
-    if os.path.exists(backupPath):
+
+    if not os.path.exists(backupPath):
         return jsonify({"message": "Backup not found"}), 404
 
-
     try:
-        overwriteSqlite(backupPath)
+        restoreFull(file)
         return jsonify({"message": f'Successfully restored from backup "{file}"'})
     except Exception as e:
         return jsonify({"message": f'Restore failed!', 'error': e}), 500
@@ -60,17 +59,17 @@ def delete_backup(backup_filename):
     file = secure_filename(backup_filename)
     if file.startswith('\\') or file.startswith('/'):
         file = file[1:]
+    backupZip = Path(backupFolder, file)
 
-    if not file:
-        return jsonify({"message": "Backup file not found"}), 404
-
-    if os.path.exists(file):
-        os.remove(file)
+    if os.path.exists(backupZip):
+        os.remove(backupZip)
+    else:
+        return jsonify({"message": f"Backup file {file} not found"}), 404
 
     return jsonify({"message": f'Backup "{file}" deleted successfully!'})
 
 # upload
-@backupBlueprint.route("/api/maintenance/backup/upload")
+@backupBlueprint.route("/api/maintenance/backup/upload", methods=["POST"])
 def upload_backup():
     # check if the post request has the file part
     if 'file' not in request.files:
