@@ -15,7 +15,7 @@ const Login = ({ onLogin }) => {
     e.preventDefault();
 
     try {
-      const response = await fetch("http://127.0.0.1:5000/login", {
+      const response = await fetch("http://127.0.0.1:5000/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
@@ -24,7 +24,13 @@ const Login = ({ onLogin }) => {
       const data = await response.json();
 
       if (response.ok) {
-        onLogin({ name: username, role: "user" });
+        const role =
+          data.user && data.user.username === "admin" ? "admin" : "user";
+        onLogin({
+          name: (data.user && data.user.username) || username,
+          role,
+          token: data.access_token,
+        });
       } else {
         alert(data.message);
       }
@@ -80,7 +86,7 @@ const Login = ({ onLogin }) => {
   );
 };
 
-const UploadSection = ({ refreshFiles }) => {
+const UploadSection = ({ refreshFiles, token }) => {
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState("");
 
@@ -93,6 +99,7 @@ const UploadSection = ({ refreshFiles }) => {
     try {
       const response = await fetch("http://127.0.0.1:5000/upload", {
         method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
       const data = await response.json();
@@ -126,7 +133,9 @@ const Dashboard = ({ user, onLogout }) => {
   const [files, setFiles] = useState([]);
 
   const fetchFiles = () => {
-    fetch("http://127.0.0.1:5000/files")
+    fetch("http://127.0.0.1:5000/files", {
+      headers: { Authorization: `Bearer ${user.token}` },
+    })
       .then((res) => res.json())
       .then((data) => setFiles(data))
       .catch((err) => console.error("Error:", err));
@@ -142,6 +151,7 @@ const Dashboard = ({ user, onLogout }) => {
     try {
       const response = await fetch(`http://127.0.0.1:5000/delete/${fileId}`, {
         method: "DELETE",
+        headers: { Authorization: `Bearer ${user.token}` },
       });
       const data = await response.json();
       alert(data.message);
@@ -175,9 +185,36 @@ const Dashboard = ({ user, onLogout }) => {
                   <span>📄 {file.name}</span>
                   <div>
                     <button
-                      onClick={() =>
-                        window.open(`http://127.0.0.1:5000/download/${file.id}`)
-                      }
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(
+                            `http://127.0.0.1:5000/download/${file.id}`,
+                            {
+                              headers: {
+                                Authorization: `Bearer ${user.token}`,
+                              },
+                            },
+                          );
+                          if (!res.ok) {
+                            const msg =
+                              (await res.json().catch(() => ({}))).message ||
+                              "Download failed.";
+                            alert(msg);
+                            return;
+                          }
+                          const blob = await res.blob();
+                          const url = window.URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = file.name;
+                          document.body.appendChild(a);
+                          a.click();
+                          a.remove();
+                          window.URL.revokeObjectURL(url);
+                        } catch (e) {
+                          alert("Download failed.");
+                        }
+                      }}
                       style={styles.smallBtn}
                     >
                       Download
@@ -195,7 +232,7 @@ const Dashboard = ({ user, onLogout }) => {
               <p>No files found on server.</p>
             )}
           </ul>
-          <UploadSection refreshFiles={fetchFiles} />
+          <UploadSection refreshFiles={fetchFiles} token={user.token} />
         </section>
 
         {user.role === "admin" && (

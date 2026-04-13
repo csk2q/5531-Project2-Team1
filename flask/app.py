@@ -13,6 +13,7 @@ from flask_jwt_extended import (
     jwt_required,
 )
 from models import File, User
+from sqlalchemy import text
 from werkzeug.utils import secure_filename
 
 from flask import Flask, jsonify, request, send_from_directory
@@ -80,6 +81,7 @@ def home():
 
 
 @app.route("/upload", methods=["POST"])
+@jwt_required()
 def upload_file():
     if "file" not in request.files:
         return jsonify({"message": "No file part"}), 400
@@ -107,6 +109,7 @@ def upload_file():
 
 
 @app.route("/files", methods=["GET"])
+@jwt_required()
 def list_files():
     files = File.query.all()
 
@@ -114,6 +117,7 @@ def list_files():
 
 
 @app.route("/delete/<int:file_id>", methods=["DELETE"])
+@jwt_required()
 def delete_file(file_id):
     file = File.query.get(file_id)
 
@@ -130,6 +134,7 @@ def delete_file(file_id):
 
 
 @app.route("/download/<int:file_id>", methods=["GET"])
+@jwt_required()
 def download_file(file_id):
     file = File.query.get(file_id)
 
@@ -145,6 +150,148 @@ def download_file(file_id):
 
 # Register routes from blueprints #
 
+# ========== Users and Account Blueprints ==========
+from flask import Blueprint
+
+usersBlueprint = Blueprint("users", __name__, url_prefix="/api/users")
+accountBlueprint = Blueprint("account", __name__, url_prefix="/api/account")
+
+
+def _is_admin(username: str) -> bool:
+    user = User.query.filter_by(username=username).first()
+    return bool(user and getattr(user, "is_admin", False))
+
+
+@usersBlueprint.route("/create", methods=["POST"])
+@jwt_required()
+def users_create():
+    data = request.get_json(silent=True) or {}
+    current = get_jwt_identity()
+
+    if not _is_admin(current):
+        return jsonify({"message": "Admin privileges required"}), 403
+
+    username = (data.get("username") or "").strip()
+    password = data.get("password")
+
+    if not username or not password:
+        return jsonify({"message": "Missing username or password"}), 400
+
+    if User.query.filter_by(username=username).first():
+        return jsonify({"message": "User already exists"}), 409
+
+    user = User(username=username)
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+
+    return jsonify(
+        {"message": "User created", "user": {"id": user.id, "username": user.username}}
+    ), 201
+
+
+@usersBlueprint.route("/delete", methods=["POST"])
+@jwt_required()
+def users_delete():
+    data = request.get_json(silent=True) or {}
+    current = get_jwt_identity()
+
+    if not _is_admin(current):
+        return jsonify({"message": "Admin privileges required"}), 403
+
+    username = (data.get("username") or "").strip()
+    if not username:
+        return jsonify({"message": "Missing username"}), 400
+
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        return jsonify({"message": "User not found"}), 404
+
+    if username == current:
+        return jsonify({"message": "Admin cannot delete own account"}), 400
+
+    db.session.delete(user)
+    db.session.commit()
+    return jsonify({"message": "User deleted"}), 200
+
+
+@usersBlueprint.route("/modify", methods=["POST"])
+@jwt_required()
+def users_modify():
+    data = request.get_json(silent=True) or {}
+    current = get_jwt_identity()
+    target = (data.get("username") or current).strip()
+
+    if target != current and not _is_admin(current):
+        return jsonify(
+            {"message": "Admin privileges required to modify other users"}
+        ), 403
+
+    user = User.query.filter_by(username=target).first()
+    if not user:
+        return jsonify({"message": "User not found"}), 404
+
+    new_password = data.get("password")
+    if new_password:
+        user.set_password(new_password)
+
+    db.session.commit()
+    return jsonify(
+        {"message": "User updated", "user": {"id": user.id, "username": user.username}}
+    ), 200
+
+
+@usersBlueprint.route("/permissions", methods=["GET", "POST"])
+@jwt_required()
+def users_permissions():
+    # Placeholder: No storage allocation model exists yet.
+    if request.method == "GET":
+        return jsonify({"message": "Not implemented", "permissions": {}}), 200
+    return jsonify({"message": "Permissions updated (placeholder)"}), 200
+
+
+@accountBlueprint.route("/", methods=["GET"])
+@jwt_required()
+def account_root():
+    current = get_jwt_identity()
+    return jsonify({"message": "Account endpoint", "user": current}), 200
+
+
+@accountBlueprint.route("/whoami", methods=["GET"])
+@jwt_required()
+def account_whoami():
+    return jsonify({"user": get_jwt_identity()}), 200
+
+
+@accountBlueprint.route("/modify", methods=["POST"])
+@jwt_required()
+def account_modify():
+    data = request.get_json(silent=True) or {}
+    current = get_jwt_identity()
+    target = (data.get("username") or current).strip()
+
+    if target != current and not _is_admin(current):
+        return jsonify(
+            {"message": "Admin privileges required to modify other users"}
+        ), 403
+
+    user = User.query.filter_by(username=target).first()
+    if not user:
+        return jsonify({"message": "User not found"}), 404
+
+    new_password = data.get("password")
+    if new_password:
+        user.set_password(new_password)
+
+    db.session.commit()
+    return jsonify(
+        {
+            "message": "Account updated",
+            "user": {"id": user.id, "username": user.username},
+        }
+    ), 200
+
+
 # Register file routes
 
 app.register_blueprint(fileBlueprint)
@@ -157,11 +304,65 @@ app.register_blueprint(folderBlueprint)
 
 app.register_blueprint(monitoringBlueprint)
 app.register_blueprint(authBlueprint)
+app.register_blueprint(usersBlueprint)
+app.register_blueprint(accountBlueprint)
 
 
 # Note this does not run if using 'flask run'
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
+        # Ensure a default admin user exists
+        from os import getenv
+
+        # Lightweight migration: ensure required User columns exist (SQLite)
+        # Uses PRAGMA table_info to discover existing columns and ALTER TABLE to add missing ones.
+        try:
+            existing_cols = set()
+            res = db.session.execute(text("PRAGMA table_info('user')"))
+            for row in res:
+                # row[1] is the column name in SQLite pragma output
+                try:
+                    existing_cols.add(row[1])
+                except Exception:
+                    # Fallback for mapping-like rows
+                    existing_cols.add(row["name"])
+        except Exception:
+            existing_cols = set()
+
+        def _add_col(sql: str) -> None:
+            try:
+                db.session.execute(text(sql))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+        if "email" not in existing_cols:
+            _add_col("ALTER TABLE user ADD COLUMN email VARCHAR(100)")
+        if "storage_allocation" not in existing_cols:
+            _add_col(
+                "ALTER TABLE user ADD COLUMN storage_allocation INTEGER DEFAULT 1073741824"
+            )
+        if "max_file_size" not in existing_cols:
+            _add_col(
+                "ALTER TABLE user ADD COLUMN max_file_size INTEGER DEFAULT 104857600"
+            )
+        if "is_admin" not in existing_cols:
+            _add_col("ALTER TABLE user ADD COLUMN is_admin BOOLEAN DEFAULT 0")
+        if "created_at" not in existing_cols:
+            _add_col(
+                "ALTER TABLE user ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP"
+            )
+        # Ensure an admin user exists and is flagged as admin
+        admin = User.query.filter_by(username="admin").first()
+        if not admin:
+            admin_password = getenv("ADMIN_PASSWORD", "admin123")
+            admin = User(username="admin", is_admin=True)
+            admin.set_password(admin_password)
+            db.session.add(admin)
+            db.session.commit()
+        elif not getattr(admin, "is_admin", False):
+            admin.is_admin = True
+            db.session.commit()
 
     app.run(debug=True)
