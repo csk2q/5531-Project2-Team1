@@ -4,10 +4,12 @@ import { authFetch } from "./api";
 
 function Settings({ user, onLogout }) {
   const [schedule, setSchedule] = React.useState({
-    enabled: true,
-    frequency: "daily",
-    time: "02:00",
-    location: "/backups/",
+    name: "",
+    weeks: 0,
+    days: 1,
+    hours: 0,
+    seconds: 0,
+    start_date: "",
   });
 
   const [saved, setSaved] = React.useState(false);
@@ -112,53 +114,44 @@ function Settings({ user, onLogout }) {
         <div style={s.card}>
           <h3 style={s.cardTitle}>Backup Schedule</h3>
           <div style={s.field}>
-            <label style={s.label}>Enable Backups</label>
-            <input
-              type="checkbox"
-              checked={schedule.enabled}
-              onChange={(e) =>
-                setSchedule({ ...schedule, enabled: e.target.checked })
-              }
-            />
-          </div>
-          <div style={s.field}>
-            <label style={s.label}>Frequency</label>
-            <select
-              value={schedule.frequency}
-              onChange={(e) =>
-                setSchedule({ ...schedule, frequency: e.target.value })
-              }
-              style={s.input}
-            >
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-            </select>
-          </div>
-          <div style={s.field}>
-            <label style={s.label}>Backup Time</label>
-            <input
-              type="time"
-              value={schedule.time}
-              onChange={(e) =>
-                setSchedule({ ...schedule, time: e.target.value })
-              }
-              style={s.input}
-            />
-          </div>
-          <div style={s.field}>
-            <label style={s.label}>Backup Location</label>
+            <label style={s.label}>Schedule Name</label>
             <input
               type="text"
-              value={schedule.location}
-              onChange={(e) =>
-                setSchedule({ ...schedule, location: e.target.value })
-              }
-              placeholder="/backups/"
+              value={schedule.name}
+              onChange={(e) => setSchedule({ ...schedule, name: e.target.value })}
+              placeholder="e.g. nightly-backup"
               style={s.input}
             />
           </div>
-          <button onClick={saveSchedule} style={s.btn}>
+          <div style={s.field}>
+            <label style={s.label}>Start Date & Time</label>
+            <input
+              type="datetime-local"
+              value={schedule.start_date}
+              onChange={(e) => setSchedule({ ...schedule, start_date: e.target.value })}
+              style={s.input}
+            />
+          </div>
+          <label style={{ ...s.label, margin: "12px 0 6px", display: "block" }}>
+            Repeat Interval
+          </label>
+          <div style={s.intervalGrid}>
+            {["weeks", "days", "hours", "seconds"].map((unit) => (
+              <div key={unit} style={s.field}>
+                <label style={s.label}>{unit}</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={schedule[unit]}
+                  onChange={(e) =>
+                    setSchedule({ ...schedule, [unit]: parseInt(e.target.value) || 0 })
+                  }
+                  style={{ ...s.input, textAlign: "center" }}
+                />
+              </div>
+            ))}
+          </div>
+          <button onClick={saveSchedule} style={{ ...s.btn, marginTop: "16px" }}>
             Save Schedule
           </button>
           {saved && <p style={s.successMsg}>Schedule saved successfully!</p>}
@@ -227,6 +220,7 @@ const s = {
   },
   cardTitle: { fontSize: "15px", fontWeight: "700", margin: 0 },
   formGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" },
+  intervalGrid: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" },
   field: { display: "flex", flexDirection: "column", gap: "5px" },
   label: {
     fontSize: "11px",

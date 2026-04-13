@@ -43,7 +43,8 @@ function Login({ onLogin }) {
       if (response.ok) {
         const token = data.token || data.access_token;
         if (token) setToken(token);
-        const role = data.role || (data.user && data.user.role) || "user";
+        const isAdmin = data.is_admin || (data.user && data.user.is_admin) || false;
+        const role = data.role || (isAdmin ? "admin" : "user");
         const name = (data.user && data.user.username) || username;
         onLogin({ name, role });
       } else {
