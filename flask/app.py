@@ -21,6 +21,8 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 db.init_app(app)
+with app.app_context():
+    db.create_all()
 
 
 @app.route("/")
@@ -140,6 +142,9 @@ app.register_blueprint(monitoringBlueprint)
 # Register backup routes
 from api.maintenance.backupRoutes import backupBlueprint
 app.register_blueprint(backupBlueprint)
+from api.maintenance.backupScheduleRoutes import backupScheduleRoutes, initScheduler
+app.register_blueprint(backupScheduleRoutes)
+initScheduler(app)
 
 # Note this does not run if using 'flask run'
 if __name__ == "__main__":
