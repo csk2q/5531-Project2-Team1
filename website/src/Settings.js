@@ -107,10 +107,13 @@ function Settings({ user, onLogout }) {
   };
 
   return (
-    <div>
+    <div style={{ background: "#f4f7f6", minHeight: "100vh", fontFamily: "Arial, sans-serif" }}>
       <Navbar user={user} onLogout={onLogout} />
       <div style={s.page}>
-        <h2>Backup & Restore Settings</h2>
+        <div style={{ marginBottom: "20px" }}>
+          <h2 style={{ margin: "0 0 2px", fontSize: "20px", fontWeight: "700", color: "#1e293b" }}>Backup & Restore</h2>
+          <p style={{ margin: 0, fontSize: "13px", color: "#94a3b8" }}>Schedule automatic backups and restore from history</p>
+        </div>
         <div style={s.card}>
           <h3 style={s.cardTitle}>Backup Schedule</h3>
           <div style={s.field}>
@@ -206,9 +209,9 @@ function Settings({ user, onLogout }) {
 
 const s = {
   page: {
-    fontFamily: "Arial, sans-serif",
-    background: "#f0f2f5",
-    minHeight: "100vh",
+    padding: "20px 24px 24px",
+    maxWidth: "720px",
+    margin: "0 auto",
   },
   content: { padding: "24px", maxWidth: "680px", margin: "0 auto" },
   heading: { fontSize: "20px", fontWeight: "700", margin: "0 0 20px" },
@@ -220,7 +223,7 @@ const s = {
   },
   cardTitle: { fontSize: "15px", fontWeight: "700", margin: 0 },
   formGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" },
-  intervalGrid: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" },
+  intervalGrid: { display: "flex", gap: "10px" },
   field: { display: "flex", flexDirection: "column", gap: "5px" },
   label: {
     fontSize: "11px",

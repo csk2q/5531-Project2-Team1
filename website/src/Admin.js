@@ -143,10 +143,13 @@ function Admin({ user, onLogout }) {
   };
 
   return (
-    <div style={{ background: "#f4f7f6", minHeight: "100vh" }}>
+    <div style={{ background: "#f4f7f6", minHeight: "100vh", fontFamily: "Arial, sans-serif" }}>
       <Navbar user={user} onLogout={onLogout} />
       <div style={s.page}>
-        <h2>User Management</h2>
+        <div style={{ marginBottom: "20px" }}>
+          <h2 style={{ margin: "0 0 2px", fontSize: "20px", fontWeight: "700", color: "#1e293b" }}>User Management</h2>
+          <p style={{ margin: 0, fontSize: "13px", color: "#94a3b8" }}>Create and manage user accounts</p>
+        </div>
         <div style={s.layout}>
           <div style={s.userList}>
             {loading && <p style={{ color: "#888", fontSize: "13px" }}>Loading users...</p>}
@@ -278,9 +281,9 @@ function Admin({ user, onLogout }) {
 
 const s = {
   page: {
-    fontFamily: "Arial, sans-serif",
-    background: "#f0f2f5",
-    minHeight: "100vh",
+    padding: "20px 24px 24px",
+    maxWidth: "900px",
+    margin: "0 auto",
   },
   content: { padding: "24px", maxWidth: "860px", margin: "0 auto" },
   heading: { fontSize: "20px", fontWeight: "700", margin: "0 0 20px" },

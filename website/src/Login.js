@@ -2,19 +2,18 @@ import { useState } from "react";
 import { setToken } from "./api";
 
 function Login({ onLogin }) {
-  const [mode, setMode] = useState("login"); // "login" | "register"
+  const [mode, setMode] = useState("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const resetForm = () => {
     setUsername("");
     setPassword("");
     setConfirmPassword("");
     setError("");
-    setSuccess("");
   };
 
   const switchMode = (newMode) => {
@@ -22,17 +21,19 @@ function Login({ onLogin }) {
     setMode(newMode);
   };
 
+  const doLogin = (data, fallbackUsername) => {
+    const token = data.token || data.access_token;
+    if (token) setToken(token);
+    const isAdmin = data.is_admin || (data.user && data.user.is_admin) || false;
+    const role = data.role || (isAdmin ? "admin" : "user");
+    const name = (data.user && data.user.username) || fallbackUsername;
+    onLogin({ name, role });
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
-
-    if (username === "admin" && password === "123") {
-      const mockData = { token: "dev-token-123", role: "admin" };
-      setToken(mockData.token);
-      onLogin({ name: username, role: mockData.role });
-      return;
-    }
-
+    setLoading(true);
     try {
       const response = await fetch("http://127.0.0.1:5000/api/auth/login", {
         method: "POST",
@@ -41,28 +42,25 @@ function Login({ onLogin }) {
       });
       const data = await response.json();
       if (response.ok) {
-        const token = data.token || data.access_token;
-        if (token) setToken(token);
-        const isAdmin = data.is_admin || (data.user && data.user.is_admin) || false;
-        const role = data.role || (isAdmin ? "admin" : "user");
-        const name = (data.user && data.user.username) || username;
-        onLogin({ name, role });
+        doLogin(data, username);
       } else {
         setError(data.message || "Invalid username or password.");
       }
     } catch {
       setError("Can't reach server.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleRegister = async (e) => {
     e.preventDefault();
     setError("");
-    setSuccess("");
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
+    setLoading(true);
     try {
       const response = await fetch("http://127.0.0.1:5000/api/auth/register", {
         method: "POST",
@@ -71,141 +69,82 @@ function Login({ onLogin }) {
       });
       const data = await response.json();
       if (response.ok) {
-        setSuccess("Account created! You can now log in.");
-        setTimeout(() => switchMode("login"), 1500);
+        // Auto-login using the token returned by register
+        doLogin(data, username);
       } else {
         setError(data.message || "Registration failed.");
       }
     } catch {
       setError("Can't reach server.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const inputStyle = {
-    padding: "10px",
-    border: "1px solid #ddd",
+    padding: "10px 12px",
+    border: "1px solid #e5e7eb",
     borderRadius: "8px",
     fontSize: "14px",
-    width: "90%",
+    width: "100%",
+    boxSizing: "border-box",
+    fontFamily: "Arial, sans-serif",
   };
 
   return (
-    <div
-      style={{
-        background: "#f4f7f6",
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
+    <div style={{ background: "#f4f7f6", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Arial, sans-serif" }}>
       <form
         onSubmit={mode === "login" ? handleLogin : handleRegister}
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "12px",
-          width: "300px",
-          padding: "32px",
-          background: "white",
-          borderRadius: "12px",
-          boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
-          fontFamily: "Arial, sans-serif",
-        }}
+        style={{ display: "flex", flexDirection: "column", gap: "12px", width: "320px", padding: "32px", background: "white", borderRadius: "12px", boxShadow: "0 2px 16px rgba(0,0,0,0.09)" }}
       >
-        <h2 style={{ textAlign: "center", margin: "0 0 8px", fontSize: "20px" }}>
-          NAS Manager
-        </h2>
+        <div style={{ textAlign: "center", marginBottom: "4px" }}>
+          <h2 style={{ margin: "0 0 4px", fontSize: "20px", fontWeight: "700", color: "#1e293b" }}>NAS Manager</h2>
+          <p style={{ margin: 0, fontSize: "12px", color: "#94a3b8" }}>Sign in to manage your storage</p>
+        </div>
 
         {/* Tab switcher */}
-        <div style={{ display: "flex", borderRadius: "8px", overflow: "hidden", border: "1px solid #ddd" }}>
-          <button
-            type="button"
-            onClick={() => switchMode("login")}
-            style={{
-              flex: 1,
-              padding: "8px",
-              border: "none",
-              cursor: "pointer",
-              fontSize: "13px",
-              background: mode === "login" ? "#1d4ed8" : "#f9fafb",
-              color: mode === "login" ? "white" : "#555",
-              fontWeight: mode === "login" ? "bold" : "normal",
-            }}
-          >
-            Log In
-          </button>
-          <button
-            type="button"
-            onClick={() => switchMode("register")}
-            style={{
-              flex: 1,
-              padding: "8px",
-              border: "none",
-              borderLeft: "1px solid #ddd",
-              cursor: "pointer",
-              fontSize: "13px",
-              background: mode === "register" ? "#1d4ed8" : "#f9fafb",
-              color: mode === "register" ? "white" : "#555",
-              fontWeight: mode === "register" ? "bold" : "normal",
-            }}
-          >
-            Create Account
-          </button>
+        <div style={{ display: "flex", borderRadius: "8px", overflow: "hidden", border: "1px solid #e5e7eb" }}>
+          {["login", "register"].map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => switchMode(m)}
+              style={{
+                flex: 1,
+                padding: "8px",
+                border: "none",
+                borderLeft: m === "register" ? "1px solid #e5e7eb" : "none",
+                cursor: "pointer",
+                fontSize: "13px",
+                background: mode === m ? "#1d4ed8" : "#f9fafb",
+                color: mode === m ? "white" : "#64748b",
+                fontWeight: mode === m ? "700" : "400",
+                transition: "all 0.15s",
+              }}
+            >
+              {m === "login" ? "Log In" : "Create Account"}
+            </button>
+          ))}
         </div>
 
         {error && (
-          <p style={{ color: "#b91c1c", background: "#fef2f2", padding: "10px", borderRadius: "8px", margin: 0, fontSize: "13px" }}>
+          <p style={{ color: "#b91c1c", background: "#fef2f2", padding: "10px", borderRadius: "8px", margin: 0, fontSize: "13px", border: "1px solid #fca5a5" }}>
             {error}
           </p>
         )}
-        {success && (
-          <p style={{ color: "#15803d", background: "#f0fdf4", padding: "10px", borderRadius: "8px", margin: 0, fontSize: "13px" }}>
-            {success}
-          </p>
-        )}
 
-        <input
-          placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          style={inputStyle}
-          required
-        />
-        <input
-          placeholder="Password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={inputStyle}
-          required
-        />
+        <input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} style={inputStyle} required />
+        <input placeholder="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} required />
         {mode === "register" && (
-          <input
-            placeholder="Confirm Password"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            style={inputStyle}
-            required
-          />
+          <input placeholder="Confirm Password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} style={inputStyle} required />
         )}
 
         <button
           type="submit"
-          style={{
-            padding: "10px",
-            border: "none",
-            borderRadius: "8px",
-            width: "100%",
-            background: "#1d4ed8",
-            color: "white",
-            fontSize: "14px",
-            fontWeight: "bold",
-            cursor: "pointer",
-          }}
+          disabled={loading}
+          style={{ padding: "10px", border: "none", borderRadius: "8px", width: "100%", background: loading ? "#93c5fd" : "#1d4ed8", color: "white", fontSize: "14px", fontWeight: "700", cursor: loading ? "not-allowed" : "pointer", transition: "background 0.15s" }}
         >
-          {mode === "login" ? "Log In" : "Create Account"}
+          {loading ? "Please wait..." : mode === "login" ? "Log In" : "Create Account"}
         </button>
       </form>
     </div>
