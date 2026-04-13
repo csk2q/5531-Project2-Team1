@@ -70,11 +70,22 @@ export default function App() {
             )
           }
         />
+        <Route
+          path="*"
+          element={
+            <div style={{ textAlign: "center", padding: "80px", fontFamily: "Arial, sans-serif" }}>
+              <h2 style={{ fontSize: "48px", margin: "0 0 8px" }}>404</h2>
+              <p style={{ color: "#888" }}>Page not found.</p>
+              <a href="/" style={{ color: "#1d4ed8", fontSize: "14px" }}>Go home</a>
+            </div>
+          }
+        />
       </Routes>
     </Router>
   );
 }
 
+// eslint-disable-next-line no-unused-vars
 const styles = {
   authPage: {
     height: "100vh",

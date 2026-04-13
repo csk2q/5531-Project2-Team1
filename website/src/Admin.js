@@ -17,6 +17,8 @@ function Admin({ user, onLogout }) {
   });
   const [isNew, setIsNew] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
 
   const showStatus = (msg) => {
     setStatusMsg(msg);
@@ -24,10 +26,15 @@ function Admin({ user, onLogout }) {
   };
 
   const fetchUsers = () => {
+    setFetchError("");
     authFetch("/api/users/list")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Server error");
+        return res.json();
+      })
       .then((data) => setUsers(Array.isArray(data) ? data : []))
-      .catch((err) => console.error("Error fetching users:", err));
+      .catch(() => setFetchError("Could not load users. Is the server running?"))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -142,6 +149,11 @@ function Admin({ user, onLogout }) {
         <h2>User Management</h2>
         <div style={s.layout}>
           <div style={s.userList}>
+            {loading && <p style={{ color: "#888", fontSize: "13px" }}>Loading users...</p>}
+            {fetchError && <p style={{ color: "#b91c1c", fontSize: "13px" }}>{fetchError}</p>}
+            {!loading && !fetchError && users.length === 0 && (
+              <p style={{ color: "#888", fontSize: "13px" }}>No users found. Add one below.</p>
+            )}
             {users.map((u) => (
               <div
                 key={u.id}

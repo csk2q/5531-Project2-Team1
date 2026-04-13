@@ -1,21 +1,16 @@
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "./Navbar";
 import { authFetch } from "./api";
 
-// Placeholder monitoring page
 function Monitoring({ user, onLogout }) {
-  const [stats, setStats] = useState({
-    cpu: 0,
-    disk_total: 0,
-    disk_used: 0,
-    ram_used: 0,
-    ram_total: 0,
-  });
+  const [stats, setStats] = useState(null);
+  const [fetchError, setFetchError] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const [logs, setLogs] = useState([
-    { timestamp: "2026-04-08 1:00:00", message: "EXAMPLE" },
-    { timestamp: "2026-04-08 1:05:00", message: "EXAMPLE" },
-    { timestamp: "2026-04-08 1:10:00", message: "EXAMPLE" },
+  const [logs] = useState([
+    { time: "2026-04-08 1:00:00", level: "INFO", message: "Server started" },
+    { time: "2026-04-08 1:05:00", level: "INFO", message: "User logged in" },
+    { time: "2026-04-08 1:10:00", level: "WARN", message: "Disk usage above 80%" },
   ]);
 
   useEffect(() => {
@@ -26,6 +21,8 @@ function Monitoring({ user, onLogout }) {
           authFetch("/api/monitoring/memory"),
           authFetch("/api/monitoring/storage"),
         ]);
+
+        if (!cpuRes.ok || !memRes.ok || !storageRes.ok) throw new Error("Server error");
 
         const cpu = await cpuRes.json();
         const mem = await memRes.json();
@@ -40,18 +37,21 @@ function Monitoring({ user, onLogout }) {
           disk_used: parseFloat((storage.used / GB).toFixed(1)),
           disk_total: parseFloat((storage.total / GB).toFixed(1)),
         });
-      } catch (err) {
-        console.error("Failed to fetch monitoring stats:", err);
+        setFetchError("");
+      } catch {
+        setFetchError("Could not reach monitoring endpoints.");
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchStats();
-    const interval = setInterval(fetchStats, 5000); // refresh every 5 seconds
+    const interval = setInterval(fetchStats, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  const diskPercent = Math.round((stats.disk_used / stats.disk_total) * 100);
-  const ramPercent = Math.round((stats.ram_used / stats.ram_total) * 100);
+  const diskPercent = stats ? Math.round((stats.disk_used / stats.disk_total) * 100) : 0;
+  const ramPercent = stats ? Math.round((stats.ram_used / stats.ram_total) * 100) : 0;
 
   const barColor = (pct) =>
     pct > 85 ? "#ef4444" : pct > 60 ? "#f59e0b" : "#3b82f6";
@@ -88,28 +88,44 @@ function Monitoring({ user, onLogout }) {
     </div>
   );
 
+  if (loading) {
+    return (
+      <div>
+        <Navbar user={user} onLogout={onLogout} />
+        <div style={{ padding: "40px", textAlign: "center", color: "#888" }}>
+          <p>Loading monitoring data...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <Navbar user={user} onLogout={onLogout} />
+      {fetchError && (
+        <div style={{ background: "#fef2f2", color: "#b91c1c", padding: "12px 24px", fontSize: "14px", borderBottom: "1px solid #fca5a5" }}>
+          {fetchError}
+        </div>
+      )}
       <div style={s.content}>
         <h2 style={s.heading}>System Monitoring</h2>
         <div style={s.statGrid}>
-          <StatCard label="CPU Usage" value={`${stats.cpu}%`} />
-          <StatCard label="Disk Used" value={`${stats.disk_used} GB`} />
-          <StatCard label="RAM Used" value={`${stats.ram_used} GB`} />
+          <StatCard label="CPU Usage" value={stats ? `${stats.cpu}%` : "—"} />
+          <StatCard label="Disk Used" value={stats ? `${stats.disk_used} GB` : "—"} />
+          <StatCard label="RAM Used" value={stats ? `${stats.ram_used} GB` : "—"} />
         </div>
         <div style={s.card}>
           <h3 style={s.cardTitle}>Usage</h3>
-          <Bar label="CPU" percent={stats.cpu} detail={`${stats.cpu}%`} />
+          <Bar label="CPU" percent={stats?.cpu ?? 0} detail={stats ? `${stats.cpu}%` : "—"} />
           <Bar
             label="Disk"
             percent={diskPercent}
-            detail={`${stats.disk_used} GB / ${stats.disk_total} GB`}
+            detail={stats ? `${stats.disk_used} GB / ${stats.disk_total} GB` : "—"}
           />
           <Bar
             label="RAM"
             percent={ramPercent}
-            detail={`${stats.ram_used} GB / ${stats.ram_total} GB`}
+            detail={stats ? `${stats.ram_used} GB / ${stats.ram_total} GB` : "—"}
           />
         </div>
         <div style={s.card}>
