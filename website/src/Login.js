@@ -41,8 +41,11 @@ function Login({ onLogin }) {
       });
       const data = await response.json();
       if (response.ok) {
-        if (data.token) setToken(data.token);
-        onLogin({ name: username, role: data.role });
+        const token = data.token || data.access_token;
+        if (token) setToken(token);
+        const role = data.role || (data.user && data.user.role) || "user";
+        const name = (data.user && data.user.username) || username;
+        onLogin({ name, role });
       } else {
         setError(data.message || "Invalid username or password.");
       }
