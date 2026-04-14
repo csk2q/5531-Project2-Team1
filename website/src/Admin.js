@@ -1,275 +1,254 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import Navbar from "./Navbar";
 import { authFetch } from "./api";
 
 function Admin({ user, onLogout }) {
-  const navigate = useNavigate();
+  const [createForm, setCreateForm] = useState({ username: "", password: "" });
+  const [createMsg, setCreateMsg] = useState({ text: "", type: "" });
+  const [createLoading, setCreateLoading] = useState(false);
 
-  const [users, setUsers] = useState([]);
-  const [selected, setSelected] = useState(null);
-  const [form, setForm] = useState({
-    name: "",
-    username: "",
-    password: "",
-    role: "user",
-    permissions: { read: true, write: false, edit: false },
-  });
-  const [isNew, setIsNew] = useState(false);
-  const [statusMsg, setStatusMsg] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState("");
+  const [modifyForm, setModifyForm] = useState({ username: "", password: "" });
+  const [modifyMsg, setModifyMsg] = useState({ text: "", type: "" });
+  const [modifyLoading, setModifyLoading] = useState(false);
 
-  const showStatus = (msg) => {
-    setStatusMsg(msg);
-    setTimeout(() => setStatusMsg(""), 3000);
-  };
-
-  const fetchUsers = () => {
-    setFetchError("");
-    authFetch("/api/users/list")
-      .then((res) => {
-        if (!res.ok) throw new Error("Server error");
-        return res.json();
-      })
-      .then((data) => setUsers(Array.isArray(data) ? data : []))
-      .catch(() => setFetchError("Could not load users. Is the server running?"))
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  const [deleteUsername, setDeleteUsername] = useState("");
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleteMsg, setDeleteMsg] = useState({ text: "", type: "" });
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   if (user?.role !== "admin") {
     return (
-      <div>
+      <div style={{ background: "#f4f7f6", minHeight: "100vh", fontFamily: "Arial, sans-serif" }}>
         <Navbar user={user} onLogout={onLogout} />
         <div style={s.page}>
-          <p style={{ color: "red" }}>Access denied. Admins only.</p>
+          <p style={{ color: "#b91c1c", fontSize: "14px" }}>Access denied. Admins only.</p>
         </div>
       </div>
     );
   }
 
-  const selectUser = (u) => {
-    setSelected(u);
-    setForm({
-      name: u.name,
-      username: u.username,
-      password: "",
-      role: u.role,
-      permissions: u.permissions || { read: true, write: false, edit: false },
-    });
-    setIsNew(false);
+  const showMsg = (setter, text, type = "success") => {
+    setter({ text, type });
+    setTimeout(() => setter({ text: "", type: "" }), 4000);
   };
 
-  const newUser = () => {
-    setSelected(null);
-    setForm({
-      name: "",
-      username: "",
-      password: "",
-      role: "user",
-      permissions: { read: true, write: false, edit: false },
-    });
-    setIsNew(true);
-  };
-
-  const saveUser = async () => {
-    try {
-      if (isNew) {
-        const response = await authFetch("/api/users/create", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
-        });
-        const data = await response.json();
-        showStatus(data.message || "User created.");
-      } else {
-        const response = await authFetch("/api/users/modify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: selected.id, ...form }),
-        });
-        const data = await response.json();
-        showStatus(data.message || "User updated.");
-      }
-      fetchUsers();
-      setSelected(null);
-      setIsNew(false);
-      setForm({ name: "", username: "", password: "", role: "user" });
-    } catch (err) {
-      showStatus("Failed to save user.");
-    }
-  };
-
-  const deleteUser = async () => {
-    if (!selected) return;
-    if (
-      !window.confirm(`Are you sure you want to delete ${selected.username}?`)
-    )
+  const handleCreate = async () => {
+    if (!createForm.username.trim()) {
+      showMsg(setCreateMsg, "Username is required.", "error");
       return;
+    }
+    if (!createForm.password) {
+      showMsg(setCreateMsg, "Password is required.", "error");
+      return;
+    }
+    setCreateLoading(true);
     try {
-      const response = await authFetch("/api/users/delete", {
-        method: "DELETE",
+      const response = await authFetch("/api/users/create", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: selected.id }),
+        body: JSON.stringify(createForm),
       });
       const data = await response.json();
-      showStatus(data.message || "User deleted.");
-      fetchUsers();
-      setSelected(null);
-      setForm({ name: "", username: "", password: "", role: "user" });
-    } catch (err) {
-      showStatus("Failed to delete user.");
+      showMsg(setCreateMsg, data.message || "User created.", response.ok ? "success" : "error");
+      if (response.ok) setCreateForm({ username: "", password: "" });
+    } catch {
+      showMsg(setCreateMsg, "Failed to create user.", "error");
+    } finally {
+      setCreateLoading(false);
     }
   };
 
-  const initials =
-    user?.name
-      ?.split(" ")
-      .map((n) => n.charAt(0).toUpperCase())
-      .join("") || "U";
-  const avatarColor = (role) => {
-    if (role === "admin") return "#e74c3c";
-    if (role === "user") return "#3498db";
-    return "#95a5a6";
+  const handleModify = async () => {
+    if (!modifyForm.username.trim()) {
+      showMsg(setModifyMsg, "Username is required.", "error");
+      return;
+    }
+    if (!modifyForm.password) {
+      showMsg(setModifyMsg, "New password is required.", "error");
+      return;
+    }
+    setModifyLoading(true);
+    try {
+      const response = await authFetch("/api/users/modify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(modifyForm),
+      });
+      const data = await response.json();
+      showMsg(setModifyMsg, data.message || "User updated.", response.ok ? "success" : "error");
+      if (response.ok) setModifyForm({ username: "", password: "" });
+    } catch {
+      showMsg(setModifyMsg, "Failed to update user.", "error");
+    } finally {
+      setModifyLoading(false);
+    }
   };
-  const avatarText = (role) => {
-    if (role === "admin") return "A";
-    if (role === "user") return "U";
-    return "?";
+
+  const handleDelete = async () => {
+    if (!deleteUsername.trim()) {
+      showMsg(setDeleteMsg, "Username is required.", "error");
+      return;
+    }
+    if (!deleteConfirm) {
+      setDeleteConfirm(true);
+      return;
+    }
+    setDeleteLoading(true);
+    try {
+      const response = await authFetch("/api/users/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: deleteUsername }),
+      });
+      const data = await response.json();
+      showMsg(setDeleteMsg, data.message || "User deleted.", response.ok ? "success" : "error");
+      if (response.ok) {
+        setDeleteUsername("");
+        setDeleteConfirm(false);
+      }
+    } catch {
+      showMsg(setDeleteMsg, "Failed to delete user.", "error");
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   return (
-    <div style={{ background: "#f4f7f6", minHeight: "100vh" }}>
+    <div style={{ background: "#f4f7f6", minHeight: "100vh", fontFamily: "Arial, sans-serif" }}>
       <Navbar user={user} onLogout={onLogout} />
       <div style={s.page}>
-        <h2>User Management</h2>
-        <div style={s.layout}>
-          <div style={s.userList}>
-            {loading && <p style={{ color: "#888", fontSize: "13px" }}>Loading users...</p>}
-            {fetchError && <p style={{ color: "#b91c1c", fontSize: "13px" }}>{fetchError}</p>}
-            {!loading && !fetchError && users.length === 0 && (
-              <p style={{ color: "#888", fontSize: "13px" }}>No users found. Add one below.</p>
-            )}
-            {users.map((u) => (
-              <div
-                key={u.id}
-                onClick={() => selectUser(u)}
-                style={{
-                  ...s.userItem,
-                  background: selected?.id === u.id ? "#ecf0f1" : "white",
-                }}
-              >
-                <div style={{ ...s.avatar, background: avatarColor(u.role) }}>
-                  {avatarText(u.role)}
-                </div>
-                <div>
-                  <p style={{ margin: 0, fontWeight: "bold" }}>{u.name}</p>
-                  <p style={{ margin: 0, fontSize: "12px", color: "#7f8c8d" }}>
-                    {u.username} - {u.role}
-                  </p>
-                </div>
-              </div>
-            ))}
-            <button onClick={newUser} style={s.newBtn}>
-              + New User
+        <div style={{ marginBottom: "20px" }}>
+          <h2 style={{ margin: "0 0 2px", fontSize: "20px", fontWeight: "700", color: "#1e293b" }}>
+            User Management
+          </h2>
+          <p style={{ margin: 0, fontSize: "13px", color: "#94a3b8" }}>
+            Create and manage user accounts
+          </p>
+        </div>
+
+        <div style={s.grid}>
+          {/* Create User */}
+          <div style={s.card}>
+            <h3 style={s.cardTitle}>Create User</h3>
+            <p style={s.cardDesc}>Add a new user account to the system.</p>
+            <div style={s.field}>
+              <label style={s.label}>Username</label>
+              <input
+                style={s.input}
+                placeholder="Enter username"
+                value={createForm.username}
+                onChange={(e) => setCreateForm({ ...createForm, username: e.target.value })}
+              />
+            </div>
+            <div style={{ ...s.field, marginTop: "10px" }}>
+              <label style={s.label}>Password</label>
+              <input
+                style={s.input}
+                type="password"
+                placeholder="Enter password"
+                value={createForm.password}
+                onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+              />
+            </div>
+            <button
+              onClick={handleCreate}
+              disabled={createLoading}
+              style={{ ...s.btn, marginTop: "14px" }}
+            >
+              {createLoading ? "Creating..." : "Create User"}
             </button>
-          </div>
-          <div style={s.userDetails}>
-            {statusMsg && (
-              <p
-                style={{
-                  color: "#16a34a",
-                  fontWeight: "600",
-                  fontSize: "13px",
-                }}
-              >
-                {statusMsg}
+            {createMsg.text && (
+              <p style={{ ...s.msg, color: createMsg.type === "error" ? "#b91c1c" : "#15803d" }}>
+                {createMsg.text}
               </p>
             )}
-            {selected || isNew ? (
-              <>
-                <input
-                  placeholder="Name"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  style={s.input}
-                />
-                <input
-                  placeholder="Username"
-                  value={form.username}
-                  onChange={(e) =>
-                    setForm({ ...form, username: e.target.value })
-                  }
-                  style={s.input}
-                />
-                <input
-                  placeholder={
-                    isNew ? "Password" : "New password (leave blank to keep)"
-                  }
-                  type="password"
-                  value={form.password}
-                  onChange={(e) =>
-                    setForm({ ...form, password: e.target.value })
-                  }
-                  style={s.input}
-                />
-                <select
-                  value={form.role}
-                  onChange={(e) => setForm({ ...form, role: e.target.value })}
-                  style={s.input}
-                >
-                  <option value="user">User</option>
-                  <option value="admin">Admin</option>
-                </select>
-                <div style={s.permissionsBox}>
-                  <p
-                    style={{
-                      margin: "0 0 8px",
-                      fontSize: "11px",
-                      fontWeight: "600",
-                      color: "#555",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                    }}
-                  >
-                    Permissions
-                  </p>
-                  {["read", "write", "edit"].map((perm) => (
-                    <label key={perm} style={s.permLabel}>
-                      <input
-                        type="checkbox"
-                        checked={form.permissions[perm] || false}
-                        onChange={(e) =>
-                          setForm({
-                            ...form,
-                            permissions: {
-                              ...form.permissions,
-                              [perm]: e.target.checked,
-                            },
-                          })
-                        }
-                      />
-                      {perm.charAt(0).toUpperCase() + perm.slice(1)}
-                    </label>
-                  ))}
-                </div>
-                <button onClick={saveUser} style={s.saveBtn}>
-                  Save
-                </button>
-                {!isNew && (
-                  <button onClick={deleteUser} style={s.deleteBtn}>
-                    Delete
-                  </button>
-                )}
-              </>
-            ) : (
-              <p>Select a user to view/edit details.</p>
+          </div>
+
+          {/* Change Password */}
+          <div style={s.card}>
+            <h3 style={s.cardTitle}>Change Password</h3>
+            <p style={s.cardDesc}>Update the password for an existing user.</p>
+            <div style={s.field}>
+              <label style={s.label}>Username</label>
+              <input
+                style={s.input}
+                placeholder="Enter username"
+                value={modifyForm.username}
+                onChange={(e) => setModifyForm({ ...modifyForm, username: e.target.value })}
+              />
+            </div>
+            <div style={{ ...s.field, marginTop: "10px" }}>
+              <label style={s.label}>New Password</label>
+              <input
+                style={s.input}
+                type="password"
+                placeholder="Enter new password"
+                value={modifyForm.password}
+                onChange={(e) => setModifyForm({ ...modifyForm, password: e.target.value })}
+              />
+            </div>
+            <button
+              onClick={handleModify}
+              disabled={modifyLoading}
+              style={{ ...s.btn, marginTop: "14px" }}
+            >
+              {modifyLoading ? "Updating..." : "Update Password"}
+            </button>
+            {modifyMsg.text && (
+              <p style={{ ...s.msg, color: modifyMsg.type === "error" ? "#b91c1c" : "#15803d" }}>
+                {modifyMsg.text}
+              </p>
             )}
           </div>
+
+          {/* Delete User */}
+          <div style={{ ...s.card, borderTop: "3px solid #fca5a5" }}>
+            <h3 style={s.cardTitle}>Delete User</h3>
+            <p style={s.cardDesc}>Permanently remove a user account.</p>
+            <div style={s.field}>
+              <label style={s.label}>Username</label>
+              <input
+                style={s.input}
+                placeholder="Enter username to delete"
+                value={deleteUsername}
+                onChange={(e) => {
+                  setDeleteUsername(e.target.value);
+                  setDeleteConfirm(false);
+                }}
+              />
+            </div>
+            {deleteConfirm && deleteUsername && (
+              <div style={s.confirmBox}>
+                This will permanently delete <strong>{deleteUsername}</strong>. Click Delete again to confirm.
+              </div>
+            )}
+            <button
+              onClick={handleDelete}
+              disabled={deleteLoading}
+              style={{ ...s.btn, marginTop: "14px", background: deleteConfirm ? "#b91c1c" : "#374151" }}
+            >
+              {deleteLoading ? "Deleting..." : deleteConfirm ? "Confirm Delete" : "Delete User"}
+            </button>
+            {!deleteConfirm && deleteUsername && (
+              <button
+                onClick={() => { setDeleteUsername(""); setDeleteConfirm(false); }}
+                style={s.cancelBtn}
+              >
+                Cancel
+              </button>
+            )}
+            {deleteMsg.text && (
+              <p style={{ ...s.msg, color: deleteMsg.type === "error" ? "#b91c1c" : "#15803d" }}>
+                {deleteMsg.text}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div style={{ ...s.card, marginTop: "0", padding: "14px 20px" }}>
+          <p style={{ margin: 0, fontSize: "13px", color: "#94a3b8" }}>
+            User list view is not yet available — pending backend endpoint from the team.
+          </p>
         </div>
       </div>
     </div>
@@ -278,50 +257,24 @@ function Admin({ user, onLogout }) {
 
 const s = {
   page: {
-    fontFamily: "Arial, sans-serif",
-    background: "#f0f2f5",
-    minHeight: "100vh",
+    padding: "20px 24px 24px",
+    maxWidth: "900px",
+    margin: "0 auto",
   },
-  content: { padding: "24px", maxWidth: "860px", margin: "0 auto" },
-  heading: { fontSize: "20px", fontWeight: "700", margin: "0 0 20px" },
-  layout: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" },
-  panel: { background: "white", borderRadius: "10px", padding: "20px" },
-  panelTitle: { fontSize: "15px", fontWeight: "700" },
-  userRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    padding: "10px",
-    borderRadius: "8px",
-    cursor: "pointer",
-    marginBottom: "4px",
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: "16px",
+    marginBottom: "16px",
   },
-  avatar: {
-    width: "36px",
-    height: "36px",
-    borderRadius: "50%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "12px",
-    fontWeight: "700",
-    flexShrink: 0,
+  card: {
+    background: "white",
+    borderRadius: "10px",
+    padding: "20px",
+    boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
   },
-  badge: {
-    fontSize: "11px",
-    fontWeight: "600",
-    padding: "3px 8px",
-    borderRadius: "99px",
-  },
-  addBtn: {
-    fontSize: "13px",
-    padding: "6px 12px",
-    background: "#111",
-    color: "white",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-  },
+  cardTitle: { fontSize: "15px", fontWeight: "700", margin: "0 0 4px" },
+  cardDesc: { fontSize: "12px", color: "#94a3b8", margin: "0 0 14px" },
   field: { display: "flex", flexDirection: "column", gap: "5px" },
   label: {
     fontSize: "11px",
@@ -335,9 +288,11 @@ const s = {
     border: "1px solid #e5e7eb",
     borderRadius: "8px",
     fontSize: "14px",
+    width: "100%",
+    boxSizing: "border-box",
   },
-  saveBtn: {
-    flex: 1,
+  btn: {
+    width: "100%",
     padding: "10px",
     background: "#111",
     color: "white",
@@ -347,30 +302,31 @@ const s = {
     cursor: "pointer",
     fontSize: "14px",
   },
-  deleteBtn: {
-    padding: "10px 16px",
-    background: "#fef2f2",
-    color: "#b91c1c",
-    border: "1px solid #fca5a5",
+  cancelBtn: {
+    width: "100%",
+    marginTop: "8px",
+    padding: "8px",
+    background: "white",
+    color: "#374151",
+    border: "1px solid #e5e7eb",
     borderRadius: "8px",
     fontWeight: "600",
     cursor: "pointer",
-    fontSize: "14px",
+    fontSize: "13px",
   },
-  permissionsBox: {
+  confirmBox: {
+    marginTop: "10px",
     padding: "10px 12px",
-    border: "1px solid #e5e7eb",
+    background: "#fef2f2",
+    border: "1px solid #fca5a5",
     borderRadius: "8px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
+    fontSize: "12px",
+    color: "#b91c1c",
   },
-  permLabel: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    fontSize: "14px",
-    cursor: "pointer",
+  msg: {
+    margin: "10px 0 0",
+    fontSize: "13px",
+    fontWeight: "600",
   },
 };
 

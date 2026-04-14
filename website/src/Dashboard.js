@@ -6,69 +6,73 @@ import { authFetch } from "./api";
 const UploadSection = ({ refreshFiles }) => {
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState("");
+  const [statusType, setStatusType] = useState(""); // "success" | "error" | ""
 
   const handleUpload = async () => {
-    if (!file) return alert("Please select a file first!");
+    if (!file) {
+      setStatusType("error");
+      setStatus("Please select a file first.");
+      return;
+    }
     const formData = new FormData();
     formData.append("file", file);
     setStatus("Uploading...");
+    setStatusType("");
     try {
-      const response = await authFetch(
-        "/api/storage/file/upload",
-        {
-          method: "POST",
-          body: formData,
-        },
-      );
+      const response = await authFetch("/api/storage/file/upload", {
+        method: "POST",
+        body: formData,
+      });
       const data = await response.json();
-      setStatus(data.message);
-      refreshFiles();
-    } catch (error) {
+      setStatus(data.message || "Upload complete.");
+      setStatusType(response.ok ? "success" : "error");
+      if (response.ok) refreshFiles();
+    } catch {
       setStatus("Upload failed.");
+      setStatusType("error");
     }
   };
 
   return (
-    <div
-      style={{
-        marginTop: "20px",
-        padding: "15px",
-        background: "#eee",
-        borderRadius: "8px",
-      }}
-    >
-      <h4>Upload to NAS</h4>
-      <input type="file" onChange={(e) => setFile(e.target.files[0])} />
-      <button onClick={handleUpload} style={styles.actionBtn}>
-        Submit Upload
-      </button>
-      <p>{status}</p>
+    <div style={{ marginTop: "20px", padding: "15px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "8px" }}>
+      <h4 style={{ margin: "0 0 10px", fontSize: "14px", fontWeight: "600", color: "#374151" }}>Upload a File</h4>
+      <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+        <input type="file" onChange={(e) => setFile(e.target.files[0])} style={{ fontSize: "13px" }} />
+        <button onClick={handleUpload} style={styles.actionBtn}>
+          Upload
+        </button>
+      </div>
+      {status && (
+        <p style={{ margin: "8px 0 0", fontSize: "13px", color: statusType === "error" ? "#b91c1c" : statusType === "success" ? "#15803d" : "#64748b" }}>
+          {status}
+        </p>
+      )}
     </div>
   );
 };
 
 const Dashboard = ({ user, onLogout }) => {
   const [files, setFiles] = useState([]);
-  const [folders, setFolders] = useState([]);
-  const [newFolderName, setNewFolderName] = useState("");
-  const [renamingFolder, setRenamingFolder] = useState(null);
-  const [renameValue, setRenameValue] = useState("");
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
+  const [actionMsg, setActionMsg] = useState({ text: "", type: "" });
+
+  const showMsg = (text, type = "success") => {
+    setActionMsg({ text, type });
+    setTimeout(() => setActionMsg({ text: "", type: "" }), 3000);
+  };
 
   const navigate = useNavigate();
 
   const fetchContents = () => {
     setFetchError("");
-    authFetch("/api/storage/folder/contents")
+    authFetch("/files")
       .then((res) => {
         if (!res.ok) throw new Error("Server error");
         return res.json();
       })
       .then((data) => {
-        const items = Array.isArray(data) ? data : [];
-        setFolders(items.filter((i) => i.type === "folder"));
-        setFiles(items.filter((i) => i.type !== "folder"));
+        setFiles(Array.isArray(data) ? data : []);
       })
       .catch(() => setFetchError("Could not load files. Is the server running?"))
       .finally(() => setLoading(false));
@@ -79,85 +83,32 @@ const Dashboard = ({ user, onLogout }) => {
   }, []);
 
   const handleDeleteFile = async (file) => {
-    if (!window.confirm(`Are you sure you want to delete ${file.name}?`))
-      return;
+    if (!window.confirm(`Delete "${file.name}"?`)) return;
     try {
-      const response = await authFetch(
-        `/api/storage/file/delete/${file.id}`,
-        {
-          method: "DELETE",
-        },
-      );
+      const response = await authFetch(`/delete/${file.id}`, { method: "DELETE" });
       const data = await response.json();
-      alert(data.message);
+      showMsg(data.message || "File deleted.");
       fetchContents();
-    } catch (error) {
-      alert("Delete failed.");
+    } catch {
+      showMsg("Delete failed.", "error");
     }
   };
 
-  const handleCreateFolder = async () => {
-    if (!newFolderName.trim()) return alert("Please enter a folder name.");
+  const handleDownloadFile = async (file) => {
     try {
-      const response = await authFetch(
-        "/api/storage/folder/create",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: newFolderName }),
-        },
-      );
-      const data = await response.json();
-      alert(data.message);
-      setNewFolderName("");
-      fetchContents();
-    } catch (error) {
-      alert("Failed to create folder.");
-    }
-  };
-
-  const handleDeleteFolder = async (folder) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete the folder "${folder.name}"?`,
-      )
-    )
-      return;
-    try {
-      const response = await authFetch(
-        "/api/storage/folder/delete",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: folder.id }),
-        },
-      );
-      const data = await response.json();
-      alert(data.message);
-      fetchContents();
-    } catch (error) {
-      alert("Failed to delete folder.");
-    }
-  };
-
-  const handleRenameFolder = async (folder) => {
-    if (!renameValue.trim()) return alert("Please enter a new name.");
-    try {
-      const response = await authFetch(
-        "/api/storage/folder/rename",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: folder.id, newName: renameValue }),
-        },
-      );
-      const data = await response.json();
-      alert(data.message);
-      setRenamingFolder(null);
-      setRenameValue("");
-      fetchContents();
-    } catch (error) {
-      alert("Failed to rename folder.");
+      const response = await authFetch(`/download/${file.id}`);
+      if (!response.ok) { showMsg("Download failed.", "error"); return; }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      showMsg("Download failed.", "error");
     }
   };
 
@@ -176,87 +127,25 @@ const Dashboard = ({ user, onLogout }) => {
   return (
     <div style={styles.dashboardContainer}>
       <Navbar user={user} onLogout={onLogout} />
-      {fetchError && (
-        <div style={styles.errorBanner}>{fetchError}</div>
+      {fetchError && <div style={styles.errorBanner}>{fetchError}</div>}
+      {actionMsg.text && (
+        <div style={{ ...styles.errorBanner, background: actionMsg.type === "error" ? "#fef2f2" : "#f0fdf4", color: actionMsg.type === "error" ? "#b91c1c" : "#15803d", borderBottom: `1px solid ${actionMsg.type === "error" ? "#fca5a5" : "#86efac"}` }}>
+          {actionMsg.text}
+        </div>
       )}
+      <div style={styles.pageHeader}>
+        <div>
+          <h2 style={styles.pageTitle}>File Manager</h2>
+          <p style={styles.pageSubtitle}>Manage your files and folders</p>
+        </div>
+      </div>
       <main style={styles.mainContent}>
-        {/* Folders */}
+        {/* Folders — coming soon */}
         <section style={styles.card}>
           <h3>Folders</h3>
-          <ul style={styles.list}>
-            {folders.length > 0 ? (
-              folders.map((folder) => (
-                <li key={folder.id} style={styles.listItem}>
-                  {renamingFolder === folder.id ? (
-                    <div style={{ display: "flex", gap: "6px", flex: 1 }}>
-                      <input
-                        value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        style={{
-                          flex: 1,
-                          padding: "4px 8px",
-                          borderRadius: "6px",
-                          border: "1px solid #ddd",
-                        }}
-                      />
-                      <button
-                        onClick={() => handleRenameFolder(folder)}
-                        style={styles.smallBtn}
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={() => setRenamingFolder(null)}
-                        style={{ ...styles.smallBtn, color: "gray" }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <span>📁 {folder.name}</span>
-                      <div>
-                        <button
-                          onClick={() => {
-                            setRenamingFolder(folder.id);
-                            setRenameValue(folder.name);
-                          }}
-                          style={styles.smallBtn}
-                        >
-                          Rename
-                        </button>
-                        <button
-                          onClick={() => handleDeleteFolder(folder)}
-                          style={{ ...styles.smallBtn, color: "red" }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </li>
-              ))
-            ) : (
-              <p>No folders found.</p>
-            )}
-          </ul>
-          <div style={{ marginTop: "16px", display: "flex", gap: "8px" }}>
-            <input
-              placeholder="New folder name"
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              style={{
-                flex: 1,
-                padding: "6px 10px",
-                borderRadius: "6px",
-                border: "1px solid #ddd",
-                fontSize: "14px",
-              }}
-            />
-            <button onClick={handleCreateFolder} style={styles.actionBtn}>
-              Create
-            </button>
-          </div>
+          <p style={{ color: "#888", fontSize: "13px", margin: "0 0 8px" }}>
+            Folder management is not yet available.
+          </p>
         </section>
 
         {/* Files */}
@@ -266,14 +155,17 @@ const Dashboard = ({ user, onLogout }) => {
             {files.length > 0 ? (
               files.map((file) => (
                 <li key={file.id} style={styles.listItem}>
-                  <span>📄 {file.name}</span>
+                  <div>
+                    <span style={{ fontWeight: "600" }}>{file.name}</span>
+                    {file.size != null && (
+                      <span style={{ marginLeft: "8px", fontSize: "12px", color: "#888" }}>
+                        {(file.size / 1024).toFixed(1)} KB
+                      </span>
+                    )}
+                  </div>
                   <div>
                     <button
-                      onClick={() =>
-                        window.open(
-                          `/api/storage/file/download/${file.id}`,
-                        )
-                      }
+                      onClick={() => handleDownloadFile(file)}
                       style={styles.smallBtn}
                     >
                       Download
@@ -288,7 +180,7 @@ const Dashboard = ({ user, onLogout }) => {
                 </li>
               ))
             ) : (
-              <p>No files found on server.</p>
+              <p style={{ color: "#888", fontSize: "13px" }}>No files found on server.</p>
             )}
           </ul>
           <UploadSection refreshFiles={fetchContents} />
@@ -298,7 +190,6 @@ const Dashboard = ({ user, onLogout }) => {
           <section style={{ ...styles.card, borderTop: "4px solid red" }}>
             <h3 style={{ margin: "0 0 12px" }}>Admin Quick Access</h3>
             <p style={{ margin: "0 0 16px", fontSize: "13px", color: "#666" }}>
-              <span style={{ color: "#2ecc71", marginRight: "6px" }}>●</span>
               System Online
             </p>
             <button
@@ -326,11 +217,19 @@ const styles = {
     backgroundColor: "#f4f7f6",
     minHeight: "100vh",
   },
+  pageHeader: {
+    padding: "20px 24px 0",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  pageTitle: { margin: "0 0 2px", fontSize: "20px", fontWeight: "700", color: "#1e293b" },
+  pageSubtitle: { margin: 0, fontSize: "13px", color: "#94a3b8" },
   mainContent: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
-    gap: "30px",
-    padding: "24px",
+    gap: "24px",
+    padding: "16px 24px 24px",
   },
   card: {
     padding: "20px",

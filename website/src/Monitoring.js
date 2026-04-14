@@ -7,7 +7,7 @@ function Monitoring({ user, onLogout }) {
   const [fetchError, setFetchError] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const [logs] = useState([
+  const [logs] = useState([   // Mock log data
     { time: "2026-04-08 1:00:00", level: "INFO", message: "Server started" },
     { time: "2026-04-08 1:05:00", level: "INFO", message: "User logged in" },
     { time: "2026-04-08 1:10:00", level: "WARN", message: "Disk usage above 80%" },
@@ -100,7 +100,7 @@ function Monitoring({ user, onLogout }) {
   }
 
   return (
-    <div>
+    <div style={{ background: "#f4f7f6", minHeight: "100vh", fontFamily: "Arial, sans-serif" }}>
       <Navbar user={user} onLogout={onLogout} />
       {fetchError && (
         <div style={{ background: "#fef2f2", color: "#b91c1c", padding: "12px 24px", fontSize: "14px", borderBottom: "1px solid #fca5a5" }}>
@@ -108,7 +108,10 @@ function Monitoring({ user, onLogout }) {
         </div>
       )}
       <div style={s.content}>
-        <h2 style={s.heading}>System Monitoring</h2>
+        <div style={{ marginBottom: "20px" }}>
+          <h2 style={s.heading}>System Monitoring</h2>
+          <p style={{ margin: 0, fontSize: "13px", color: "#94a3b8" }}>Live stats — refreshes every 5 seconds</p>
+        </div>
         <div style={s.statGrid}>
           <StatCard label="CPU Usage" value={stats ? `${stats.cpu}%` : "—"} />
           <StatCard label="Disk Used" value={stats ? `${stats.disk_used} GB` : "—"} />
@@ -156,8 +159,8 @@ const s = {
     background: "#f0f2f5",
     minHeight: "100vh",
   },
-  content: { padding: "24px", maxWidth: "860px", margin: "0 auto" },
-  heading: { fontSize: "20px", fontWeight: "700", margin: "0 0 20px" },
+  content: { padding: "20px 24px 24px", maxWidth: "860px", margin: "0 auto" },
+  heading: { fontSize: "20px", fontWeight: "700", margin: "0 0 2px", color: "#1e293b" },
   statGrid: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr 1fr",
