@@ -38,11 +38,6 @@ with app.app_context():
 jwt = JWTManager(app)
 
 
-@app.route("/")
-def home():
-    return "Backend is running!"
-
-
 # @app.route("/register", methods=["POST"])
 # def register():
 #     data = request.get_json()
@@ -318,6 +313,16 @@ app.register_blueprint(backupBlueprint)
 from api.maintenance.backupScheduleRoutes import backupScheduleRoutes, initScheduler
 app.register_blueprint(backupScheduleRoutes)
 initScheduler(app)
+
+# Serve static files from /build
+@app.route('/')
+def catch_all():
+    return send_from_directory('build', 'index.html')
+
+@app.route('/<path:filename>')
+def static_files(filename):
+    return send_from_directory('build', filename)
+
 
 # Note this does not run if using 'flask run'
 if __name__ == "__main__":
