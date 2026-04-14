@@ -27,7 +27,7 @@ folderBlueprint = Blueprint("folderListHomeRoute", __name__)
 # Helpers for safe path handling
 # -----------------------------
 def _base_dir() -> Path:
-    return Path(current_app.config["UPLOAD_FOLDER"]).resolve()
+    return Path("uploads").resolve()
 
 
 def _safe_path(rel_path: str) -> Path:
@@ -197,7 +197,7 @@ def list_files():
     user = _get_current_user()
     if not _is_admin(user):
         return jsonify({"message": "Forbidden"}), 403
-    files = os.listdir(current_app.config["UPLOAD_FOLDER"])
+    files = os.listdir("uploads")
     return jsonify({"files": files})
 
 

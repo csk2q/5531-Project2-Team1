@@ -32,7 +32,7 @@ fileBlueprint = Blueprint("fileRoutes", __name__)
 def about_file(fileID):
     # Full absolute path
     full_path = os.path.join(
-        current_app.config["UPLOAD_FOLDER"], secure_filename(fileID)
+        "uploads", secure_filename(fileID)
     )
 
     if not os.path.isfile(full_path):
@@ -83,7 +83,7 @@ def download_file(file_id):
     try:
         # as_attachment=True forces the browser to download it instead of opening it
         return send_from_directory(
-            current_app.config["UPLOAD_FOLDER"],
+            "uploads",
             os.path.basename(file.path),
             as_attachment=True,
         )
@@ -97,7 +97,7 @@ def download_file(file_id):
 @jwt_required()
 def rename_file(fileID):
     full_path = os.path.join(
-        current_app.config["UPLOAD_FOLDER"], secure_filename(fileID)
+        "uploads", secure_filename(fileID)
     )
 
     if not os.path.isfile(full_path):
@@ -108,7 +108,7 @@ def rename_file(fileID):
     try:
         newFileName = jsonRequest["newFilename"]
         newFilePath = os.path.join(
-            current_app.config["UPLOAD_FOLDER"], secure_filename(newFileName)
+            "uploads", secure_filename(newFileName)
         )
         os.rename(full_path, newFilePath)
     except:
@@ -148,10 +148,10 @@ def upload_file():
     # Strip path separators and traversal attempts but preserve spaces/original name
     folder = request.form.get("folder", "").strip().lstrip("/").replace("..", "")
     if folder and os.sep not in folder:
-        upload_dir = os.path.join(current_app.config["UPLOAD_FOLDER"], folder)
+        upload_dir = os.path.join("uploads", folder)
         os.makedirs(upload_dir, exist_ok=True)
     else:
-        upload_dir = current_app.config["UPLOAD_FOLDER"]
+        upload_dir = "uploads"
 
     path = os.path.join(upload_dir, filename)
 

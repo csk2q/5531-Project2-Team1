@@ -126,7 +126,7 @@ def restoreFull(backupName: str):
 
     # First replace uploaded files
     backupFilesPath = Path(tempPath, 'uploads').resolve()
-    uploadPath = Path(current_app.config["UPLOAD_FOLDER"]).resolve()
+    uploadPath = Path("uploads").resolve()
 
     tmp = os.path.join(uploadPath.parent.resolve(), f".{os.path.basename(uploadPath)}.tmp.{uuid.uuid4().hex}")
     # Move existing folder out of the way

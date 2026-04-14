@@ -63,8 +63,7 @@ def initScheduler(app: Flask):
 
 
 def run_backup():
-    with current_app.app_context():
-        backupFull()
+    backupFull()
 
 
 def add_schedule(
@@ -200,11 +199,11 @@ def modify_schedule(scheduleId):
     "/api/maintenance/backup/schedule/remove/<int:scheduleId>", methods=["POST"]
 )
 def remove_schedule(scheduleId):
-    json_data = request.get_json()
-    try:
-        data: dict = scheduleSchema.load(json_data)  # type: ignore
-    except ValidationError as err:
-        return jsonify({"errors": err.messages}), 400
+    # json_data = request.get_json()
+    # try:
+    #     data: dict = scheduleSchema.load(json_data)  # type: ignore
+    # except ValidationError as err:
+    #     return jsonify({"errors": err.messages}), 400
 
     schedule: Optional[BackupSchedule] = BackupSchedule.query.get(scheduleId)
 
@@ -212,6 +211,8 @@ def remove_schedule(scheduleId):
         return jsonify({"message": "Failed to find the that schedule schedule!"}), 500
 
     try:
+        db.session.delete(schedule)
+        db.session.commit()
         scheduler.remove_job(str(schedule.id))
     except Exception as error:
         logger.error("Failed to delete the schedule!", error)
