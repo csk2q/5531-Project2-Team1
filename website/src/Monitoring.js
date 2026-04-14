@@ -162,7 +162,7 @@ function Monitoring({ user, onLogout }) {
           <StatCard
             label="CPU Usage"
             value={stats ? `${stats.cpu}%` : "—"}
-            sub={stats ? (stats.cpu > 85 ? "⚠ High" : "Normal") : null}
+            sub={stats ? (stats.cpu > 85 ? "High" : "Normal") : null}
           />
           <StatCard
             label="Disk Used"

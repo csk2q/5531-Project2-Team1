@@ -208,6 +208,17 @@ function Settings({ user, onLogout }) {
     return parts.length > 0 ? `Every ${parts.join(" ")}` : "Custom interval";
   };
 
+  if (user?.role !== "admin") {
+    return (
+      <div style={{ background: "#f4f7f6", minHeight: "100vh", fontFamily: "Arial, sans-serif" }}>
+        <Navbar user={user} onLogout={onLogout} />
+        <div style={s.page}>
+          <p style={{ color: "#b91c1c", fontSize: "14px" }}>Access denied. Admins only.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ background: "#f4f7f6", minHeight: "100vh", fontFamily: "Arial, sans-serif" }}>
       <Navbar user={user} onLogout={onLogout} />

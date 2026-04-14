@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import Navbar from "./Navbar";
 import { authFetch } from "./api";
 
@@ -25,6 +25,10 @@ function Admin({ user, onLogout }) {
   const [allFiles, setAllFiles] = useState([]);
   const [filesLoading, setFilesLoading] = useState(true);
   const [filesMsg, setFilesMsg] = useState({ text: "", type: "" });
+
+  const [viewingUserFiles, setViewingUserFiles] = useState(null); // username string
+  const [userFiles, setUserFiles] = useState([]);
+  const [userFilesLoading, setUserFilesLoading] = useState(false);
 
   const showMsg = (setter, text, type = "success") => {
     setter({ text, type });
@@ -109,6 +113,26 @@ function Admin({ user, onLogout }) {
     }
   };
 
+  const openUserFiles = (username) => {
+    if (viewingUserFiles === username) { setViewingUserFiles(null); return; }
+    setViewingUserFiles(username);
+    setUserFilesLoading(true);
+    authFetch(`/api/users/files?username=${encodeURIComponent(username)}`)
+      .then((r) => {
+        if (!r.ok) throw new Error("not_implemented");
+        return r.json();
+      })
+      .then((data) => setUserFiles(Array.isArray(data) ? data : []))
+      .catch(() => {
+        // Endpoint not yet implemented — fall back to showing all files
+        authFetch("/files")
+          .then((r) => r.json())
+          .then((data) => setUserFiles(Array.isArray(data) ? data : []))
+          .catch(() => setUserFiles([]));
+      })
+      .finally(() => setUserFilesLoading(false));
+  };
+
   const handleCreate = async () => {
     if (!createForm.username.trim()) { showMsg(setCreateMsg, "Username is required.", "error"); return; }
     if (!createForm.password) { showMsg(setCreateMsg, "Password is required.", "error"); return; }
@@ -185,7 +209,7 @@ function Admin({ user, onLogout }) {
         <div style={s.card}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <h3 style={{ ...s.cardTitle, margin: 0 }}>All Users</h3>
-            <button onClick={fetchUsers} style={s.refreshBtn}>↻ Refresh</button>
+            <button onClick={fetchUsers} style={s.refreshBtn}>Refresh</button>
           </div>
 
           {usersMsg.text && (
@@ -209,7 +233,8 @@ function Admin({ user, onLogout }) {
               </thead>
               <tbody>
                 {users.map((u) => (
-                  <tr key={u.username} style={s.tr}>
+                  <React.Fragment key={u.username}>
+                  <tr style={s.tr}>
                     <td style={s.td}>
                       <span style={{ fontWeight: "600" }}>{u.username}</span>
                       {u.username === user?.username && (
@@ -228,17 +253,63 @@ function Admin({ user, onLogout }) {
                         : "—"}
                     </td>
                     <td style={s.td}>
-                      {u.username !== user?.username && (
+                      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                        {u.username !== user?.username && (
+                          <button
+                            onClick={() => toggleRole(u)}
+                            disabled={roleLoading[u.username]}
+                            style={u.is_admin ? s.demoteBtn : s.promoteBtn}
+                          >
+                            {roleLoading[u.username] ? "..." : u.is_admin ? "Remove Admin" : "Make Admin"}
+                          </button>
+                        )}
                         <button
-                          onClick={() => toggleRole(u)}
-                          disabled={roleLoading[u.username]}
-                          style={u.is_admin ? s.demoteBtn : s.promoteBtn}
+                          onClick={() => openUserFiles(u.username)}
+                          style={{ ...s.promoteBtn, background: viewingUserFiles === u.username ? "#f0fdf4" : "#f8fafc", color: viewingUserFiles === u.username ? "#15803d" : "#374151", borderColor: viewingUserFiles === u.username ? "#86efac" : "#e5e7eb" }}
                         >
-                          {roleLoading[u.username] ? "..." : u.is_admin ? "Remove Admin" : "Make Admin"}
+                          {viewingUserFiles === u.username ? "Hide Files" : "View Files"}
                         </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
+                  {viewingUserFiles === u.username && (
+                    <tr>
+                      <td colSpan={5} style={{ padding: 0 }}>
+                        <div style={s.userFilesPanel}>
+                          <p style={s.userFilesPanelTitle}>
+                            Files for <strong>{u.username}</strong>
+                          </p>
+                          {userFilesLoading ? (
+                            <p style={{ color: "#888", fontSize: "13px" }}>Loading...</p>
+                          ) : userFiles.length > 0 ? (
+                            <table style={{ ...s.table, marginTop: 0 }}>
+                              <thead>
+                                <tr>
+                                  <th style={s.th}>File Name</th>
+                                  <th style={s.th}>Size</th>
+                                  <th style={s.th}>Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {userFiles.map((file) => (
+                                  <tr key={file.id} style={s.tr}>
+                                    <td style={s.td}>{file.name}</td>
+                                    <td style={s.td}>{file.size != null ? `${(file.size / 1024).toFixed(1)} KB` : "—"}</td>
+                                    <td style={s.td}>
+                                      <button onClick={() => adminDeleteFile(file)} style={s.deleteFileBtn}>Delete</button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          ) : (
+                            <p style={{ color: "#888", fontSize: "13px" }}>No files found.</p>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
@@ -341,7 +412,7 @@ function Admin({ user, onLogout }) {
               <h3 style={{ ...s.cardTitle, margin: "0 0 2px" }}>All Files</h3>
               <p style={{ margin: 0, fontSize: "12px", color: "#94a3b8" }}>System-wide file view</p>
             </div>
-            <button onClick={fetchAllFiles} style={s.refreshBtn}>↻ Refresh</button>
+            <button onClick={fetchAllFiles} style={s.refreshBtn}>Refresh</button>
           </div>
 
           {filesMsg.text && (
@@ -413,6 +484,8 @@ const s = {
   promoteBtn: { padding: "5px 12px", background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe", borderRadius: "7px", cursor: "pointer", fontSize: "12px", fontWeight: "600" },
   demoteBtn: { padding: "5px 12px", background: "#fef2f2", color: "#b91c1c", border: "1px solid #fca5a5", borderRadius: "7px", cursor: "pointer", fontSize: "12px", fontWeight: "600" },
   deleteFileBtn: { padding: "5px 12px", background: "white", color: "#b91c1c", border: "1px solid #fca5a5", borderRadius: "7px", cursor: "pointer", fontSize: "12px", fontWeight: "600" },
+  userFilesPanel: { background: "#f8fafc", borderTop: "1px solid #e5e7eb", padding: "14px 20px 16px" },
+  userFilesPanelTitle: { margin: "0 0 10px", fontSize: "13px", color: "#1e293b" },
 };
 
 export default Admin;
