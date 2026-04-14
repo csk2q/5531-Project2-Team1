@@ -19,9 +19,11 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from flask import Blueprint, Flask, request, jsonify, redirect, url_for, flash, current_app, abort
 
-from api.maintenance._backup import backupSqlite
+from api.maintenance._backup import backupFull
 
 from logging import getLogger
+
+### Variables ###
 
 logger = getLogger(__name__)
 
@@ -38,17 +40,19 @@ class ScheduleSchema(Schema):
     start_date = fields.DateTime(required=True)  # parses ISO-8601 by default
 scheduleSchema = ScheduleSchema()
 
+### Functions ##
+
 def initScheduler(app: Flask):
     global scheduler
     with app.app_context():
         scheduler = BackgroundScheduler(jobstores={
         'default': SQLAlchemyJobStore(db.engine.url)
-        })
+        }, app=app)
     scheduler.start()
 
 def run_backup():
     with current_app.app_context():
-        backupSqlite()
+        backupFull()
 
 def add_schedule(id: str, weeks: int, days: int, hours: int, seconds: int, start_date: datetime):
     trigger = IntervalTrigger(weeks=weeks, days=days, hours=hours, seconds=seconds, start_date=start_date,
@@ -57,7 +61,7 @@ def add_schedule(id: str, weeks: int, days: int, hours: int, seconds: int, start
     job = scheduler.add_job(run_backup, id=id, trigger=trigger, replace_existing=True)
 
 
-# Routes #
+### Routes ###
 
 @backupScheduleRoutes.route("/api/maintenance/backup/schedule/list", methods=["GET"])
 def list_schedules():
