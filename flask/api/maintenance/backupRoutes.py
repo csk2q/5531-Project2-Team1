@@ -12,7 +12,7 @@ from models import File
 
 from api.maintenance._backup import backupFull, backupFolder, restoreFull
 
-backupBlueprint = Blueprint("backupRoutes", __name__, url_prefix="/api/maintenance/backups")
+backupBlueprint = Blueprint("backupRoutes", __name__, url_prefix="/api/maintenance/backup")
 
 ### TODO: These functions will need checks that the user is admin.
 
