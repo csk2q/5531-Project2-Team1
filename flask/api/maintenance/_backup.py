@@ -2,9 +2,6 @@ import datetime
 import logging
 import os
 import sqlite3
-import shutil
-import tempfile
-import uuid
 import zipfile
 from datetime import timezone
 from pathlib import Path
@@ -12,29 +9,18 @@ from typing import Tuple, Union
 
 from models import File
 
-from flask import current_app
-
 liveDbPath = Path("instance", "app.db")
 backupFolder = Path("backups")
 
 logger = logging.getLogger(__name__)
 
 
-<<<<<<< HEAD
-### Backup functions ###
-
-def backupFull() -> tuple[bool, Path | str]:
-    curTimeStr = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S_%fZ")
-    
-    backupDbPath = Path(backupFolder, f'app-{curTimeStr}-temp.db')
-=======
 def backupSqlite() -> Tuple[bool, Union[Path, str]]:
     curTimeStr = datetime.datetime.now(datetime.timezone.utc).strftime(
         "%Y%m%d_%H%M%S_%fZ"
     )
 
     backupDbPath = Path(backupFolder, f"app-{curTimeStr}-temp.db")
->>>>>>> 1b21218 (JWT-protect ops; first user admin; add folder for CRUD)
     zipPath = Path(backupFolder, f"backup-{curTimeStr}.zip")
 
     if not os.path.exists(backupFolder):
@@ -83,10 +69,6 @@ def backupSqlite() -> Tuple[bool, Union[Path, str]]:
 
     return True, zipPath
 
-<<<<<<< HEAD
-### Restore functions    
-=======
->>>>>>> 1b21218 (JWT-protect ops; first user admin; add folder for CRUD)
 
 def overwriteSqlite(sourceBackupPath: Path):
     dest_conn = sqlite3.connect(liveDbPath)
@@ -127,35 +109,3 @@ def overwriteSqlite(sourceBackupPath: Path):
     finally:
         dest_conn.close()
         source_conn.close()
-
-def restoreFull(backupName: str):
-    """Requires running in an app_context()"""
-    backupZip = Path(backupFolder, backupName)
-    if not os.path.exists(backupZip):
-        raise FileNotFoundError(f'The backup {backupName} does not exist!')
-    
-    # Extract the backup zip to a temp dir
-    temp_dir = tempfile.mkdtemp()
-    with zipfile.ZipFile(backupZip, 'r') as zip_ref:
-        zip_ref.extractall(temp_dir)
-    tempPath = Path(temp_dir)
-
-    # First replace uploaded files
-    backupFilesPath = Path(tempPath, 'uploads').resolve()
-    uploadPath = Path(current_app.config["UPLOAD_FOLDER"]).resolve()
-
-    tmp = os.path.join(uploadPath.parent.resolve(), f".{os.path.basename(uploadPath)}.tmp.{uuid.uuid4().hex}")
-    # Move existing folder out of the way
-    if os.path.exists(uploadPath):
-        os.replace(uploadPath, tmp)
-    # Replace the upload folder from the backup
-    os.replace(backupFilesPath, uploadPath)
-    # Remove the replaced folder
-    if os.path.exists(tmp):
-        shutil.rmtree(tmp)
-    
-    # Replace database
-    overwriteSqlite(Path(tempPath, 'instance', 'app.db'))
-
-    # Cleanup the unzipped folder
-    shutil.rmtree(tempPath)
