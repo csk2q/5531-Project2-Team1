@@ -3,8 +3,8 @@ import os
 
 from db import db
 from flask_cors import CORS
-from flask_jwt_extended import jwt_required
-from models import File
+from flask_jwt_extended import get_jwt_identity, jwt_required
+from models import File, User
 from werkzeug.utils import secure_filename
 
 from flask import (
@@ -55,6 +55,14 @@ def delete_file(file_id):
     if not file:
         return jsonify({"message": "File not found"}), 404
 
+    # Ownership/admin authorization: only admin or owner can delete
+    current = get_jwt_identity()
+    user = User.query.filter_by(username=current).first()
+    if not user:
+        return jsonify({"message": "Unauthorized"}), 401
+    if not getattr(user, "is_admin", False) and file.owner_id != user.id:
+        return jsonify({"message": "Not authorized"}), 403
+
     if os.path.exists(file.path):
         os.remove(file.path)
 
@@ -104,6 +112,13 @@ def rename_file(fileID):
         print("Rename failed? Do you need to add handling for the json?")
         raise
 
+    # Update database record for this file if it exists
+    db_file = File.query.filter_by(filename=fileID).first()
+    if db_file:
+        db_file.filename = secure_filename(newFileName)
+        db_file.path = newFilePath
+        db.session.commit()
+
     return jsonify({"message": f'File "{fileID}" was renamed to "{newFileName}".'})
 
 
@@ -128,7 +143,14 @@ def upload_file():
 
     file.save(path)
 
-    new_file = File(filename=filename, path=path, size=os.path.getsize(path))
+    # Set the owner of the uploaded file to the current authenticated user (if available)
+    current_user = User.query.filter_by(username=get_jwt_identity()).first()
+    new_file = File(
+        filename=filename,
+        path=path,
+        size=os.path.getsize(path),
+        owner_id=current_user.id if current_user else None,
+    )
 
     db.session.add(new_file)
     db.session.commit()
