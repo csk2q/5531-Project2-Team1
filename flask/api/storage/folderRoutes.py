@@ -4,7 +4,8 @@ import tempfile
 from pathlib import Path
 
 from flask_cors import CORS
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import get_jwt_identity, jwt_required
+from sqlalchemy import select
 from models import File
 from werkzeug.utils import secure_filename
 
@@ -22,7 +23,10 @@ from flask import (
     url_for,
 )
 
-folderBlueprint = Blueprint("folderListHomeRoute", __name__)
+from db import db
+from models import Folder, File
+
+folderBlueprint = Blueprint("folderRoutes", __name__)
 
 
 # Lists all files and folders in a given folder
@@ -67,25 +71,24 @@ def _safe_path(rel_path: str) -> Path:
 # -----------------------------
 # Create a folder
 # -----------------------------
-@folderBlueprint.route("/api/storage/folder/create", methods=["POST"])
+@folderBlueprint.route("/api/storage/folder/create/<string:name>", methods=["POST"])
 @jwt_required()
-def create_folder():
-    data = request.get_json(silent=True) or {}
-    path = (data.get("path") or "").strip()
-    if not path:
-        return jsonify({"message": "Missing 'path' for folder creation"}), 400
-
-    target = _safe_path(path)
-    try:
-        target.mkdir(parents=True, exist_ok=False)
-    except FileExistsError:
+def create_folder(name):
+    query = Folder.query.where(Folder.name == name).limit(1).exists()
+    if(db.session.execute(select(query)).scalar_one()):
         return jsonify({"message": "Folder already exists"}), 409
-    except Exception as exc:
-        return jsonify({"message": "Failed to create folder", "error": str(exc)}), 500
 
-    return jsonify(
-        {"message": "Folder created", "path": str(target.relative_to(_base_dir()))}
-    ), 201
+    folder = Folder()
+    folder.name = name
+    folder.owner_id = int(get_jwt_identity())
+
+    try:
+        db.session.add(folder)
+        db.session.commit()
+    except Exception as exc:
+        return jsonify({"message": "Failed to create folder", "error": exc}), 500
+
+    return jsonify({"message": f"Folder {name} created!"})
 
 
 # -----------------------------
