@@ -2,7 +2,9 @@ import datetime
 import logging
 import os
 import sqlite3
+import shutil
 import tempfile
+import uuid
 import zipfile
 from datetime import timezone
 from pathlib import Path
@@ -123,9 +125,21 @@ def restoreFull(backupName: str):
     tempPath = Path(temp_dir)
 
     # First replace uploaded files
-    backupFilesPath = Path(tempPath, 'uploads')
-    uploadPath = Path(current_app.config["UPLOAD_FOLDER"])
-    os.replace(backupFilesPath.resolve(), uploadPath.resolve())
+    backupFilesPath = Path(tempPath, 'uploads').resolve()
+    uploadPath = Path(current_app.config["UPLOAD_FOLDER"]).resolve()
 
+    tmp = os.path.join(uploadPath.parent.resolve(), f".{os.path.basename(uploadPath)}.tmp.{uuid.uuid4().hex}")
+    # Move existing folder out of the way
+    if os.path.exists(uploadPath):
+        os.replace(uploadPath, tmp)
+    # Replace the upload folder from the backup
+    os.replace(backupFilesPath, uploadPath)
+    # Remove the replaced folder
+    if os.path.exists(tmp):
+        shutil.rmtree(tmp)
+    
     # Replace database
     overwriteSqlite(Path(tempPath, 'instance', 'app.db'))
+
+    # Cleanup the unzipped folder
+    shutil.rmtree(tempPath)
