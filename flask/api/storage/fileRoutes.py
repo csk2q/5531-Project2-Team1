@@ -1,10 +1,13 @@
+import logging
 import mimetypes
 import os
 
 from db import db
+
+logger = logging.getLogger(__name__)
 from flask_cors import CORS
 from flask_jwt_extended import get_jwt_identity, jwt_required
-from models import File, User
+from models import File, Permission, User
 from werkzeug.utils import secure_filename
 
 from flask import (
@@ -119,7 +122,9 @@ def rename_file(fileID):
         db_file.path = newFilePath
         db.session.commit()
 
-    return jsonify({"message": f'File "{fileID}" was renamed to "{newFileName}".'})
+    current = get_jwt_identity()
+    logger.info(f"User {current} renamed file '{fileID}' to '{newFileName}'")
+    return jsonify({"message": f'File "{fileID}" was renamed to "{newFileName}".'}),200
 
 
 # upload
@@ -155,4 +160,168 @@ def upload_file():
     db.session.add(new_file)
     db.session.commit()
 
+    current = get_jwt_identity()
+    logger.info(f"User {current} uploaded file '{filename}'")
     return jsonify({"message": f"Successfully uploaded {filename}"}), 200
+
+
+# -----------------------------
+# Get permissions for a file
+# -----------------------------
+@fileBlueprint.route("/api/storage/file/permissions", methods=["GET"])
+@jwt_required()
+def get_permissions():
+    file_id = request.args.get("file_id", type=int)
+    if not file_id:
+        return jsonify({"message": "Missing file_id"}), 400
+
+    file = File.query.get(file_id)
+    if not file:
+        return jsonify({"message": "File not found"}), 404
+
+    current = get_jwt_identity()
+    user = User.query.filter_by(username=current).first()
+    if not user:
+        return jsonify({"message": "Unauthorized"}), 401
+
+    # Only owner or admin can view permissions
+    is_admin = getattr(user, "is_admin", False)
+    if not is_admin and file.owner_id != user.id:
+        return jsonify({"message": "Forbidden"}), 403
+
+    perms = Permission.query.filter_by(file_id=file_id).all()
+    result = []
+    for p in perms:
+        target = User.query.get(p.user_id)
+        if target:
+            result.append({
+                "username": target.username,
+                "read": p.permission_type in ("read", "write", "admin"),
+                "write": p.permission_type in ("write", "admin"),
+            })
+    return jsonify(result), 200
+
+
+# -----------------------------
+# Set permission for a user on a file
+# -----------------------------
+@fileBlueprint.route("/api/storage/file/permissions/set", methods=["POST"])
+@jwt_required()
+def set_permission():
+    data = request.get_json(silent=True) or {}
+    file_id = data.get("file_id")
+    username = (data.get("username") or "").strip()
+    read = bool(data.get("read", False))
+    write = bool(data.get("write", False))
+
+    if not file_id or not username:
+        return jsonify({"message": "Missing file_id or username"}), 400
+
+    file = File.query.get(file_id)
+    if not file:
+        return jsonify({"message": "File not found"}), 404
+
+    current = get_jwt_identity()
+    user = User.query.filter_by(username=current).first()
+    if not user:
+        return jsonify({"message": "Unauthorized"}), 401
+
+    is_admin = getattr(user, "is_admin", False)
+    if not is_admin and file.owner_id != user.id:
+        return jsonify({"message": "Forbidden"}), 403
+
+    target = User.query.filter_by(username=username).first()
+    if not target:
+        return jsonify({"message": "User not found"}), 404
+
+    # Determine permission type
+    if write:
+        perm_type = "write"
+    elif read:
+        perm_type = "read"
+    else:
+        return jsonify({"message": "Must grant at least read or write"}), 400
+
+    # Update existing or create new
+    existing = Permission.query.filter_by(file_id=file_id, user_id=target.id).first()
+    if existing:
+        existing.permission_type = perm_type
+    else:
+        new_perm = Permission(file_id=file_id, user_id=target.id, permission_type=perm_type)
+        db.session.add(new_perm)
+
+    db.session.commit()
+    return jsonify({"message": f"Permission set for {username}"}), 200
+
+
+# -----------------------------
+# Remove permission for a user on a file
+# -----------------------------
+@fileBlueprint.route("/api/storage/file/permissions/remove", methods=["POST"])
+@jwt_required()
+def remove_permission():
+    data = request.get_json(silent=True) or {}
+    file_id = data.get("file_id")
+    username = (data.get("username") or "").strip()
+
+    if not file_id or not username:
+        return jsonify({"message": "Missing file_id or username"}), 400
+
+    file = File.query.get(file_id)
+    if not file:
+        return jsonify({"message": "File not found"}), 404
+
+    current = get_jwt_identity()
+    user = User.query.filter_by(username=current).first()
+    if not user:
+        return jsonify({"message": "Unauthorized"}), 401
+
+    is_admin = getattr(user, "is_admin", False)
+    if not is_admin and file.owner_id != user.id:
+        return jsonify({"message": "Forbidden"}), 403
+
+    target = User.query.filter_by(username=username).first()
+    if not target:
+        return jsonify({"message": "User not found"}), 404
+
+    perm = Permission.query.filter_by(file_id=file_id, user_id=target.id).first()
+    if perm:
+        db.session.delete(perm)
+        db.session.commit()
+
+    return jsonify({"message": f"Permission removed for {username}"}), 200
+
+
+# -----------------------------
+# Get files shared with the current user
+# -----------------------------
+@fileBlueprint.route("/api/storage/file/shared", methods=["GET"])
+@jwt_required()
+def shared_files():
+    current = get_jwt_identity()
+    user = User.query.filter_by(username=current).first()
+    if not user:
+        return jsonify({"message": "Unauthorized"}), 401
+
+    # Admin sees all shared files
+    if getattr(user, "is_admin", False):
+        perms = Permission.query.all()
+    else:
+        perms = Permission.query.filter_by(user_id=user.id).all()
+
+    result = []
+    seen = set()
+    for p in perms:
+        if p.file_id in seen:
+            continue
+        seen.add(p.file_id)
+        f = File.query.get(p.file_id)
+        if f:
+            result.append({
+                "id": f.id,
+                "name": f.filename,
+                "size": f.size,
+                "read": p.permission_type in ("read", "write", "admin"),
+                "write": p.permission_type in ("write", "admin"),
+            })
+    return jsonify(result), 200

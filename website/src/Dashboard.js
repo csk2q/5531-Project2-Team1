@@ -85,7 +85,10 @@ const Dashboard = ({ user, onLogout }) => {
 
   const fetchFolders = () => {
     authFetch("/api/storage/folder/contents")
-      .then((r) => r.json())
+      .then((r) => {
+        if (r.status === 403) return { items: [] }; // non-admin gets forbidden on root
+        return r.json();
+      })
       .then((data) => {
         const items = Array.isArray(data.items) ? data.items : [];
         setFolders(items.filter((i) => i.is_dir));
@@ -279,8 +282,12 @@ const Dashboard = ({ user, onLogout }) => {
 
   const getFilePerms = (file) => {
     if (selectedFolder !== SHARED_VIRTUAL) return { read: true, write: true, isOwner: true };
-    const p = (filePermissions[file.id] || []).find((x) => x.username === user?.username);
-    return { read: p?.read || false, write: p?.write || false, isOwner: false };
+    // Shared files have read/write directly on the object from the API
+    return {
+      read: file.read || false,
+      write: file.write || false,
+      isOwner: false,
+    };
   };
 
   const folderLabel =

@@ -1,3 +1,4 @@
+import logging
 import os
 
 from api.logRoutes import loggingBlueprint # First due to logging registers
@@ -13,7 +14,9 @@ from flask_jwt_extended import (
     get_jwt_identity,
     jwt_required,
 )
-from models import File, User
+from models import File, Permission, User
+
+logger = logging.getLogger(__name__)
 from sqlalchemy import text
 from werkzeug.utils import secure_filename
 
@@ -133,12 +136,19 @@ def delete_file(file_id):
     if not file:
         return jsonify({"message": "File not found"}), 404
 
-    # Ownership/admin authorization: only admin or owner can delete
     current = get_jwt_identity()
     user = User.query.filter_by(username=current).first()
     if not user:
         return jsonify({"message": "Unauthorized"}), 401
-    if not user.is_admin and file.owner_id != user.id:
+
+    is_admin = getattr(user, "is_admin", False)
+    is_owner = file.owner_id == user.id
+    has_write = Permission.query.filter_by(
+        file_id=file_id, user_id=user.id
+    ).filter(Permission.permission_type.in_(["write", "admin"])).first()
+
+    if not is_admin and not is_owner and not has_write:
+        logger.warning(f"User {current} denied delete of file {file_id}")
         return jsonify({"message": "Not authorized"}), 403
 
     if os.path.exists(file.path):
@@ -146,7 +156,7 @@ def delete_file(file_id):
 
     db.session.delete(file)
     db.session.commit()
-
+    logger.info(f"User {current} deleted file {file_id} ({file.filename})")
     return jsonify({"message": "Deleted successfully"})
 
 
@@ -158,6 +168,22 @@ def download_file(file_id):
     if not file:
         return jsonify({"message": "File not found"}), 404
 
+    current = get_jwt_identity()
+    user = User.query.filter_by(username=current).first()
+    if not user:
+        return jsonify({"message": "Unauthorized"}), 401
+
+    is_admin = getattr(user, "is_admin", False)
+    is_owner = file.owner_id == user.id
+    has_read = Permission.query.filter_by(
+        file_id=file_id, user_id=user.id
+    ).filter(Permission.permission_type.in_(["read", "write", "admin"])).first()
+
+    if not is_admin and not is_owner and not has_read:
+        logger.warning(f"User {current} denied download of file {file_id}")
+        return jsonify({"message": "Forbidden"}), 403
+
+    logger.info(f"User {current} downloaded file {file_id} ({file.filename})")
     return send_from_directory(
         app.config["UPLOAD_FOLDER"],
         os.path.basename(file.path),
@@ -205,6 +231,28 @@ def users_create():
     return jsonify(
         {"message": "User created", "user": {"id": user.id, "username": user.username}}
     ), 201
+    
+@usersBlueprint.route("/list", methods=["GET"])
+@jwt_required()
+def users_list():
+    current = get_jwt_identity()
+    is_admin = _is_admin(current)
+    all_users = User.query.order_by(User.username).all()
+    # Admins get full details; regular users get just usernames for sharing
+    if is_admin:
+        users_data = [
+            {
+                "id": u.id,
+                "username": u.username,
+                "is_admin": getattr(u, "is_admin", False),
+                "email": getattr(u, "email", None),
+                "storage_allocation": getattr(u, "storage_allocation", None),
+            }
+            for u in all_users
+        ]
+    else:
+        users_data = [{"id": u.id, "username": u.username} for u in all_users]
+    return jsonify({"users": users_data}), 200
 
 
 @usersBlueprint.route("/delete", methods=["POST"])
