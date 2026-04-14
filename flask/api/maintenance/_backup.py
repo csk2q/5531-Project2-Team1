@@ -8,6 +8,7 @@ import uuid
 import zipfile
 from datetime import timezone
 from pathlib import Path
+from typing import Tuple, Union
 
 from models import File
 
@@ -19,12 +20,21 @@ backupFolder = Path("backups")
 logger = logging.getLogger(__name__)
 
 
+<<<<<<< HEAD
 ### Backup functions ###
 
 def backupFull() -> tuple[bool, Path | str]:
     curTimeStr = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S_%fZ")
     
     backupDbPath = Path(backupFolder, f'app-{curTimeStr}-temp.db')
+=======
+def backupSqlite() -> Tuple[bool, Union[Path, str]]:
+    curTimeStr = datetime.datetime.now(datetime.timezone.utc).strftime(
+        "%Y%m%d_%H%M%S_%fZ"
+    )
+
+    backupDbPath = Path(backupFolder, f"app-{curTimeStr}-temp.db")
+>>>>>>> 1b21218 (JWT-protect ops; first user admin; add folder for CRUD)
     zipPath = Path(backupFolder, f"backup-{curTimeStr}.zip")
 
     if not os.path.exists(backupFolder):
@@ -44,12 +54,12 @@ def backupFull() -> tuple[bool, Path | str]:
         filesCursor = dest_conn.cursor()
         filesCursor.execute("SELECT path FROM File;")
         filesPathsInBackup = filesCursor.fetchall()
-        
+
     except sqlite3.Error as error:
         errMsg = f"Error while taking backup {curTimeStr}:"
         logger.error(errMsg, error)
         return False, errMsg
-        
+
     finally:
         source_conn.close()
         dest_conn.close()
@@ -57,9 +67,11 @@ def backupFull() -> tuple[bool, Path | str]:
     # Zip file and db
     try:
         with zipfile.ZipFile(zipPath, "x") as zipFile:
-            zipFile.write(backupDbPath, Path('instance', 'app.db'))
+            zipFile.write(backupDbPath, Path("instance", "app.db"))
             for filePathStr in filesPathsInBackup:
-                zipFile.write(filePathStr[0], Path('uploads', os.path.basename(filePathStr[0])))
+                zipFile.write(
+                    filePathStr[0], Path("uploads", os.path.basename(filePathStr[0]))
+                )
 
         # Remove temporary db since it is in zip now.
         os.remove(backupDbPath)
@@ -71,13 +83,15 @@ def backupFull() -> tuple[bool, Path | str]:
 
     return True, zipPath
 
+<<<<<<< HEAD
 ### Restore functions    
+=======
+>>>>>>> 1b21218 (JWT-protect ops; first user admin; add folder for CRUD)
 
 def overwriteSqlite(sourceBackupPath: Path):
     dest_conn = sqlite3.connect(liveDbPath)
-    source_conn = sqlite3.connect(f'file:{sourceBackupPath}?mode=ro', uri=True)
+    source_conn = sqlite3.connect(f"file:{sourceBackupPath}?mode=ro", uri=True)
     try:
-
         destCursor = dest_conn.cursor()
         sourceCursor = source_conn.cursor()
 
@@ -86,18 +100,20 @@ def overwriteSqlite(sourceBackupPath: Path):
         tables = [row[0] for row in sourceCursor.fetchall()]
 
         for table in tables:
-            if table == 'sqlite_sequence':
-                continue # Skip internal sequence table
-            
+            if table == "sqlite_sequence":
+                continue  # Skip internal sequence table
+
             # Delete existing rows
-            destCursor.execute(f'DELETE FROM {table}')
-            
-            sourceCursor.execute(f'SELECT * FROM {table}')
+            destCursor.execute(f"DELETE FROM {table}")
+
+            sourceCursor.execute(f"SELECT * FROM {table}")
             rows = sourceCursor.fetchall()
-            
+
             if rows:
-                placeholders = ','.join(['?'] * len(rows[0]))
-                destCursor.executemany(f'INSERT INTO {table} VALUES ({placeholders})', rows)
+                placeholders = ",".join(["?"] * len(rows[0]))
+                destCursor.executemany(
+                    f"INSERT INTO {table} VALUES ({placeholders})", rows
+                )
             else:
                 print(f"Table {table} is empty in backup.")
 
