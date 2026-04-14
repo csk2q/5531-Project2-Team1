@@ -1,5 +1,6 @@
 import os
 
+from api.logRoutes import loggingBlueprint # First due to logging registers
 from api.auth import authBlueprint
 from api.monitoring import monitoringBlueprint
 from api.storage.fileRoutes import fileBlueprint
@@ -306,6 +307,7 @@ app.register_blueprint(folderBlueprint)
 # Register monitoring routes
 
 app.register_blueprint(monitoringBlueprint)
+app.register_blueprint(loggingBlueprint)
 app.register_blueprint(authBlueprint)
 app.register_blueprint(usersBlueprint)
 app.register_blueprint(accountBlueprint)
@@ -374,4 +376,4 @@ if __name__ == "__main__":
             admin.is_admin = True
             db.session.commit()
 
-    app.run(debug=True)
+    app.run(debug=True, threaded=True)
