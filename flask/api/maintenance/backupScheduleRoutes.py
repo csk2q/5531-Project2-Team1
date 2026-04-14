@@ -106,12 +106,58 @@ def create_schedule():
     return jsonify({'message': 'Schedule created!'})
 
 @backupScheduleRoutes.route("/api/maintenance/backup/schedule/modify/<int:scheduleId>", methods=["POST"])
-def modify_schedule():
-    # TODO: Implement this route
-    return jsonify({'message': 'tbi'})
+def modify_schedule(scheduleId):
+    json_data = request.get_json()
+    try:
+        data: dict = scheduleSchema.load(json_data) # type: ignore
+    except ValidationError as err:
+        return jsonify({"errors": err.messages}), 400
+
+    schedule: BackupSchedule | None = BackupSchedule.query.get(scheduleId)
+
+    if schedule is None:
+        return jsonify({'message': 'Failed to find the that schedule schedule!'}), 500 
+
+    schedule.name=data["schedule_name"],
+    schedule.weeks=data["weeks"],
+    schedule.days=data["days"],
+    schedule.hours=data["hours"],
+    schedule.seconds=data["seconds"],
+    schedule.start_date=data["start_date"]
+    
+    try:
+        add_schedule(
+            id=str(schedule.id),
+            weeks=data["weeks"],
+            days=data["days"],
+            hours=data["hours"],
+            seconds=data["seconds"],
+            start_date=data["start_date"],
+        )
+        db.session.commit()
+    except Exception as error:
+        logger.error('Failed to update the schedule!', error)
+        return jsonify({'message': 'Failed to create the schedule!', 'error': str(error)}), 400
+    return jsonify({'message': 'Schedule modified!'})
 
 @backupScheduleRoutes.route("/api/maintenance/backup/schedule/remove/<int:scheduleId>", methods=["POST"])
-def remove_schedule():
-    # TODO: Implement this route
-    return jsonify({'message': 'tbi'})
+def remove_schedule(scheduleId):
+    json_data = request.get_json()
+    try:
+        data: dict = scheduleSchema.load(json_data) # type: ignore
+    except ValidationError as err:
+        return jsonify({"errors": err.messages}), 400
+
+    schedule: BackupSchedule | None = BackupSchedule.query.get(scheduleId)
+
+    if schedule is None:
+        return jsonify({'message': 'Failed to find the that schedule schedule!'}), 500 
+
+    try:
+        scheduler.remove_job(str(schedule.id))
+    except Exception as error:
+        logger.error('Failed to delete the schedule!', error)
+        return jsonify({'message': 'Failed to delete the schedule!', 'error': str(error)}), 500
+
+    return jsonify({'message': 'Schedule deleted!'})
 
