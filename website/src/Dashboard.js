@@ -93,12 +93,12 @@ const Dashboard = ({ user, onLogout }) => {
 
   const fetchFolders = () => {
     setFoldersLoading(true);
-    authFetch("/api/storage/folder/list")
+    // use /contents with no path to list root — gives us is_dir so we can filter
+    authFetch("/api/storage/folder/contents")
       .then((res) => res.json())
       .then((data) => {
-        if (Array.isArray(data)) setFolders(data);
-        else if (Array.isArray(data.folders)) setFolders(data.folders);
-        else setFolders([]);
+        const items = Array.isArray(data.items) ? data.items : [];
+        setFolders(items.filter((item) => item.is_dir));
       })
       .catch(() => showFolderMsg("Could not load folders.", "error"))
       .finally(() => setFoldersLoading(false));
@@ -108,13 +108,10 @@ const Dashboard = ({ user, onLogout }) => {
     setSelectedFolder(folder);
     setContentsLoading(true);
     setFolderContents([]);
-    authFetch(`/api/storage/folder/list/${folder.id}`)
+    authFetch(`/api/storage/folder/contents?path=${encodeURIComponent(folder.name)}`)
       .then((res) => res.json())
       .then((data) => {
-        if (Array.isArray(data)) setFolderContents(data);
-        else if (Array.isArray(data.contents)) setFolderContents(data.contents);
-        else if (Array.isArray(data.files)) setFolderContents(data.files);
-        else setFolderContents([]);
+        setFolderContents(Array.isArray(data.items) ? data.items : []);
       })
       .catch(() => showFolderMsg("Could not load folder contents.", "error"))
       .finally(() => setContentsLoading(false));
@@ -178,7 +175,7 @@ const Dashboard = ({ user, onLogout }) => {
       const response = await authFetch("/api/storage/folder/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ parent_folder_id: null, name: newFolderName.trim() }),
+        body: JSON.stringify({ path: newFolderName.trim() }),
       });
       const data = await response.json();
       showFolderMsg(data.message || "Folder created.", response.ok ? "success" : "error");
@@ -194,7 +191,7 @@ const Dashboard = ({ user, onLogout }) => {
       const response = await authFetch("/api/storage/folder/rename", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ folder_id: folder.id, name: renameValue.trim() }),
+        body: JSON.stringify({ path: folder.name, new_name: renameValue.trim() }),
       });
       const data = await response.json();
       showFolderMsg(data.message || "Folder renamed.", response.ok ? "success" : "error");
@@ -209,13 +206,13 @@ const Dashboard = ({ user, onLogout }) => {
       const response = await authFetch("/api/storage/folder/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ folder_id: folder.id }),
+        body: JSON.stringify({ path: folder.name, recursive: false }),
       });
       const data = await response.json();
       showFolderMsg(data.message || "Folder deleted.", response.ok ? "success" : "error");
       if (response.ok) {
         fetchFolders();
-        if (selectedFolder?.id === folder.id) setSelectedFolder(null);
+        if (selectedFolder?.name === folder.name) setSelectedFolder(null);
       }
     } catch {
       showFolderMsg("Failed to delete folder.", "error");

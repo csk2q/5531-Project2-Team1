@@ -281,8 +281,13 @@ function Admin({ user, onLogout }) {
             <p style={s.cardDesc}>Update the password for an existing user.</p>
             <div style={s.field}>
               <label style={s.label}>Username</label>
-              <input style={s.input} placeholder="Enter username" value={modifyForm.username}
-                onChange={(e) => setModifyForm({ ...modifyForm, username: e.target.value })} />
+              <select style={s.input} value={modifyForm.username}
+                onChange={(e) => setModifyForm({ ...modifyForm, username: e.target.value })}>
+                <option value="">— Select user —</option>
+                {users.map((u) => (
+                  <option key={u.username} value={u.username}>{u.username}</option>
+                ))}
+              </select>
             </div>
             <div style={{ ...s.field, marginTop: "10px" }}>
               <label style={s.label}>New Password</label>
@@ -302,8 +307,13 @@ function Admin({ user, onLogout }) {
             <p style={s.cardDesc}>Permanently remove a user account.</p>
             <div style={s.field}>
               <label style={s.label}>Username</label>
-              <input style={s.input} placeholder="Enter username to delete" value={deleteUsername}
-                onChange={(e) => { setDeleteUsername(e.target.value); setDeleteConfirm(false); }} />
+              <select style={s.input} value={deleteUsername}
+                onChange={(e) => { setDeleteUsername(e.target.value); setDeleteConfirm(false); }}>
+                <option value="">— Select user —</option>
+                {users.filter((u) => u.username !== user?.username).map((u) => (
+                  <option key={u.username} value={u.username}>{u.username}</option>
+                ))}
+              </select>
             </div>
             {deleteConfirm && deleteUsername && (
               <div style={s.confirmBox}>

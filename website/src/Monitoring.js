@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Navbar from "./Navbar";
 import { authFetch } from "./api";
 
@@ -42,16 +42,30 @@ function Monitoring({ user, onLogout }) {
     }
   }, []);
 
+  const logIndexRef = useRef(0);
+
+  const parseLogLine = (line) => {
+    // format: "2026-04-13 21:35:29,123 INFO module: message"
+    const match = line.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d+\s+(DEBUG|INFO|WARNING|ERROR)\s+([^:]+):\s(.*)$/i);
+    if (match) {
+      return { timestamp: match[1], level: match[2].toUpperCase(), category: match[3].trim(), message: match[4] };
+    }
+    return { timestamp: "", level: "INFO", category: "", message: line };
+  };
+
   const fetchLogs = useCallback(async () => {
     try {
-      const res = await authFetch("/api/monitoring/log");
+      const res = await authFetch(`/api/monitoring/logs/poll?since=${logIndexRef.current}&limit=100`);
       if (!res.ok) return;
       const data = await res.json();
-      const list = Array.isArray(data) ? data : Array.isArray(data.logs) ? data.logs : [];
-      // most recent first, cap at 50
-      setLogs(list.slice().reverse().slice(0, 50));
+      if (Array.isArray(data.logs) && data.logs.length > 0) {
+        logIndexRef.current = data.next ?? logIndexRef.current;
+        const parsed = data.logs.map(parseLogLine);
+        // prepend new entries so newest is at top, cap total at 100
+        setLogs((prev) => [...parsed.reverse(), ...prev].slice(0, 100));
+      }
     } catch {
-      // log endpoint may not exist yet — silently ignore
+      // silently ignore — endpoint may not be reachable
     }
   }, []);
 
