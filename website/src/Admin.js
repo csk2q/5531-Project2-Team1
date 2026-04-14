@@ -26,9 +26,10 @@ function Admin({ user, onLogout }) {
   const [filesLoading, setFilesLoading] = useState(true);
   const [filesMsg, setFilesMsg] = useState({ text: "", type: "" });
 
-  const [viewingUserFiles, setViewingUserFiles] = useState(null); // username string
+  const [viewingUserFiles, setViewingUserFiles] = useState(null);
   const [userFiles, setUserFiles] = useState([]);
   const [userFilesLoading, setUserFilesLoading] = useState(false);
+  const [filePerms, setFilePerms] = useState({});
 
   const showMsg = (setter, text, type = "success") => {
     setter({ text, type });
@@ -52,7 +53,20 @@ function Admin({ user, onLogout }) {
     setFilesLoading(true);
     authFetch("/files")
       .then((res) => res.json())
-      .then((data) => setAllFiles(Array.isArray(data) ? data : []))
+      .then((data) => {
+        const files = Array.isArray(data) ? data : [];
+        setAllFiles(files);
+        files.forEach((f) => {
+          authFetch(`/api/storage/file/permissions?file_id=${f.id}`)
+            .then((r) => r.json())
+            .then((perms) => {
+              if (Array.isArray(perms)) {
+                setFilePerms((prev) => ({ ...prev, [f.id]: perms }));
+              }
+            })
+            .catch(() => {});
+        });
+      })
       .catch(() => showMsg(setFilesMsg, "Could not load files.", "error"))
       .finally(() => setFilesLoading(false));
   };
@@ -117,19 +131,25 @@ function Admin({ user, onLogout }) {
     if (viewingUserFiles === username) { setViewingUserFiles(null); return; }
     setViewingUserFiles(username);
     setUserFilesLoading(true);
+    setFilePerms({});
     authFetch(`/api/users/files?username=${encodeURIComponent(username)}`)
-      .then((r) => {
-        if (!r.ok) throw new Error("not_implemented");
-        return r.json();
+      .then((r) => r.json())
+      .then((data) => {
+        const files = Array.isArray(data) ? data : [];
+        setUserFiles(files);
+        // Fetch permissions for each file
+        files.forEach((f) => {
+          authFetch(`/api/storage/file/permissions?file_id=${f.id}`)
+            .then((r) => r.json())
+            .then((perms) => {
+              if (Array.isArray(perms)) {
+                setFilePerms((prev) => ({ ...prev, [f.id]: perms }));
+              }
+            })
+            .catch(() => {});
+        });
       })
-      .then((data) => setUserFiles(Array.isArray(data) ? data : []))
-      .catch(() => {
-        // Endpoint not yet implemented — fall back to showing all files
-        authFetch("/files")
-          .then((r) => r.json())
-          .then((data) => setUserFiles(Array.isArray(data) ? data : []))
-          .catch(() => setUserFiles([]));
-      })
+      .catch(() => setUserFiles([]))
       .finally(() => setUserFilesLoading(false));
   };
 
@@ -287,19 +307,36 @@ function Admin({ user, onLogout }) {
                                 <tr>
                                   <th style={s.th}>File Name</th>
                                   <th style={s.th}>Size</th>
+                                  <th style={s.th}>Shared With</th>
                                   <th style={s.th}>Actions</th>
                                 </tr>
                               </thead>
                               <tbody>
-                                {userFiles.map((file) => (
-                                  <tr key={file.id} style={s.tr}>
-                                    <td style={s.td}>{file.name}</td>
-                                    <td style={s.td}>{file.size != null ? `${(file.size / 1024).toFixed(1)} KB` : "—"}</td>
-                                    <td style={s.td}>
-                                      <button onClick={() => adminDeleteFile(file)} style={s.deleteFileBtn}>Delete</button>
-                                    </td>
-                                  </tr>
-                                ))}
+                                {userFiles.map((file) => {
+                                  const perms = filePerms[file.id] || [];
+                                  return (
+                                    <tr key={file.id} style={s.tr}>
+                                      <td style={s.td}>{file.name}</td>
+                                      <td style={s.td}>{file.size != null ? `${(file.size / 1024).toFixed(1)} KB` : "—"}</td>
+                                      <td style={s.td}>
+                                        {perms.length === 0 ? (
+                                          <span style={{ color: "#94a3b8", fontSize: "12px" }}>Not shared</span>
+                                        ) : (
+                                          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                                            {perms.map((p) => (
+                                              <span key={p.username} style={{ fontSize: "11px", padding: "2px 7px", borderRadius: "9999px", background: p.write ? "#fefce8" : "#eff6ff", color: p.write ? "#a16207" : "#1d4ed8", fontWeight: 600 }}>
+                                                {p.username}: {p.write ? "Read + Write" : "Read"}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </td>
+                                      <td style={s.td}>
+                                        <button onClick={() => adminDeleteFile(file)} style={s.deleteFileBtn}>Delete</button>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
                               </tbody>
                             </table>
                           ) : (
@@ -429,19 +466,38 @@ function Admin({ user, onLogout }) {
                 <tr>
                   <th style={s.th}>File Name</th>
                   <th style={s.th}>Size</th>
+                  <th style={s.th}>Owner</th>
+                  <th style={s.th}>Shared With</th>
                   <th style={s.th}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {allFiles.map((file) => (
-                  <tr key={file.id} style={s.tr}>
-                    <td style={s.td}>{file.name}</td>
-                    <td style={s.td}>{file.size != null ? `${(file.size / 1024).toFixed(1)} KB` : "—"}</td>
-                    <td style={s.td}>
-                      <button onClick={() => adminDeleteFile(file)} style={s.deleteFileBtn}>Delete</button>
-                    </td>
-                  </tr>
-                ))}
+                {allFiles.map((file) => {
+                  const perms = filePerms[file.id] || [];
+                  return (
+                    <tr key={file.id} style={s.tr}>
+                      <td style={s.td}>{file.name}</td>
+                      <td style={s.td}>{file.size != null ? `${(file.size / 1024).toFixed(1)} KB` : "—"}</td>
+                      <td style={s.td}><span style={s.userBadge}>{file.owner || "—"}</span></td>
+                      <td style={s.td}>
+                        {perms.length === 0 ? (
+                          <span style={{ color: "#94a3b8", fontSize: "12px" }}>Not shared</span>
+                        ) : (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                            {perms.map((p) => (
+                              <span key={p.username} style={{ fontSize: "11px", padding: "2px 7px", borderRadius: "9999px", background: p.write ? "#fefce8" : "#eff6ff", color: p.write ? "#a16207" : "#1d4ed8", fontWeight: 600 }}>
+                                {p.username}: {p.write ? "Read + Write" : "Read"}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                      <td style={s.td}>
+                        <button onClick={() => adminDeleteFile(file)} style={s.deleteFileBtn}>Delete</button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           ) : (

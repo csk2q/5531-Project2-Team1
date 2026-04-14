@@ -144,7 +144,16 @@ def upload_file():
     # security measure to prevent directory traversal attacks
     filename = secure_filename(file.filename)
 
-    path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
+    # Optional folder — saves into a subfolder if provided
+    # Strip path separators and traversal attempts but preserve spaces/original name
+    folder = request.form.get("folder", "").strip().lstrip("/").replace("..", "")
+    if folder and os.sep not in folder:
+        upload_dir = os.path.join(current_app.config["UPLOAD_FOLDER"], folder)
+        os.makedirs(upload_dir, exist_ok=True)
+    else:
+        upload_dir = current_app.config["UPLOAD_FOLDER"]
+
+    path = os.path.join(upload_dir, filename)
 
     file.save(path)
 
@@ -317,11 +326,13 @@ def shared_files():
         seen.add(p.file_id)
         f = File.query.get(p.file_id)
         if f:
+            owner = User.query.get(f.owner_id) if f.owner_id else None
             result.append({
                 "id": f.id,
                 "name": f.filename,
                 "size": f.size,
                 "read": p.permission_type in ("read", "write", "admin"),
                 "write": p.permission_type in ("write", "admin"),
+                "shared_by": owner.username if owner else "Unknown",
             })
     return jsonify(result), 200

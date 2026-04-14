@@ -125,7 +125,10 @@ def list_files():
     else:
         files = File.query.filter_by(owner_id=user.id).all() if user else []
 
-    return jsonify([{"id": f.id, "name": f.filename, "size": f.size} for f in files])
+    def file_dict(f):
+        owner = User.query.get(f.owner_id) if f.owner_id else None
+        return {"id": f.id, "name": f.filename, "size": f.size, "owner": owner.username if owner else "—"}
+    return jsonify([file_dict(f) for f in files])
 
 
 @app.route("/delete/<int:file_id>", methods=["DELETE"])
@@ -232,6 +235,22 @@ def users_create():
         {"message": "User created", "user": {"id": user.id, "username": user.username}}
     ), 201
     
+@usersBlueprint.route("/files", methods=["GET"])
+@jwt_required()
+def users_files():
+    current = get_jwt_identity()
+    if not _is_admin(current):
+        return jsonify({"message": "Admin privileges required"}), 403
+    username = request.args.get("username", "").strip()
+    if not username:
+        return jsonify({"message": "Missing username"}), 400
+    target = User.query.filter_by(username=username).first()
+    if not target:
+        return jsonify({"message": "User not found"}), 404
+    files = File.query.filter_by(owner_id=target.id).all()
+    return jsonify([{"id": f.id, "name": f.filename, "size": f.size} for f in files]), 200
+
+
 @usersBlueprint.route("/list", methods=["GET"])
 @jwt_required()
 def users_list():

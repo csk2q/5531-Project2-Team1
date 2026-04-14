@@ -27,14 +27,27 @@ const UploadSection = ({ refreshFiles, folderPath }) => {
   };
 
   return (
-    <div style={s.uploadBox}>
-      <h4 style={s.uploadTitle}>Upload File{folderPath ? ` to "${folderPath}"` : ""}</h4>
-      <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-        <input type="file" onChange={(e) => setFile(e.target.files[0])} style={{ fontSize: "13px" }} />
-        <button onClick={handleUpload} style={s.solidBtn}>Upload</button>
+    <div style={{ marginTop: "20px", padding: "16px 18px", background: "white", border: "2px dashed #e2e8f0", borderRadius: "10px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+        <div>
+          <p style={{ margin: 0, fontSize: "13px", fontWeight: "700", color: "#1e293b" }}>
+            Upload File{folderPath ? ` to "${folderPath}"` : ""}
+          </p>
+          <p style={{ margin: "2px 0 0", fontSize: "11px", color: "#94a3b8" }}>
+            {file ? file.name : "No file selected"}
+          </p>
+        </div>
+        <button onClick={handleUpload} disabled={!file} style={{ padding: "8px 18px", background: file ? "#111" : "#e5e7eb", color: file ? "white" : "#94a3b8", border: "none", borderRadius: "7px", cursor: file ? "pointer" : "not-allowed", fontSize: "13px", fontWeight: "600", whiteSpace: "nowrap" }}>
+          Upload
+        </button>
       </div>
+      <input
+        type="file"
+        onChange={(e) => { setFile(e.target.files[0]); setStatus(""); }}
+        style={{ fontSize: "13px", width: "100%" }}
+      />
       {status && (
-        <p style={{ margin: "8px 0 0", fontSize: "13px", color: statusType === "error" ? "#b91c1c" : statusType === "success" ? "#15803d" : "#64748b" }}>
+        <p style={{ margin: "8px 0 0", fontSize: "12px", fontWeight: 600, color: statusType === "error" ? "#b91c1c" : statusType === "success" ? "#15803d" : "#64748b" }}>
           {status}
         </p>
       )}
@@ -204,6 +217,7 @@ const Dashboard = ({ user, onLogout }) => {
 
   const createFolder = async () => {
     if (!newFolderName.trim()) { showFolderMsg("Enter a folder name.", "error"); return; }
+    if (newFolderName.includes(" ")) { showFolderMsg("Folder names cannot contain spaces.", "error"); return; }
     try {
       const r = await authFetch("/api/storage/folder/create", {
         method: "POST",
@@ -281,8 +295,11 @@ const Dashboard = ({ user, onLogout }) => {
   };
 
   const getFilePerms = (file) => {
+    // Admin always has full access everywhere
+    if (user?.role === "admin") return { read: true, write: true, isOwner: true };
+    // Owner has full access
     if (selectedFolder !== SHARED_VIRTUAL) return { read: true, write: true, isOwner: true };
-    // Shared files have read/write directly on the object from the API
+    // Shared files — use permissions from API response
     return {
       read: file.read || false,
       write: file.write || false,
@@ -330,7 +347,7 @@ const Dashboard = ({ user, onLogout }) => {
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") createFolder(); if (e.key === "Escape") { setShowNewFolder(false); setNewFolderName(""); } }}
-                placeholder="Folder name"
+                placeholder="Folder name (no spaces)"
                 style={s.inlineInput}
               />
               <div style={{ display: "flex", gap: "6px", marginTop: "6px" }}>
@@ -341,6 +358,9 @@ const Dashboard = ({ user, onLogout }) => {
           )}
 
           {/* All Files */}
+          <div style={{ padding: "8px 12px 4px", fontSize: "10px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            My Files
+          </div>
           <div
             style={{ ...s.folderRow, ...(selectedFolder === null ? s.folderRowActive : {}) }}
             onClick={() => setSelectedFolder(null)}
@@ -387,11 +407,16 @@ const Dashboard = ({ user, onLogout }) => {
           ))}
 
           {/* Shared with me — virtual */}
-          <div
-            style={{ ...s.folderRow, ...s.sharedRow, ...(selectedFolder === SHARED_VIRTUAL ? s.sharedRowActive : {}) }}
-            onClick={() => setSelectedFolder(SHARED_VIRTUAL)}
-          >
-            <span style={s.folderName}>Shared with me</span>
+          <div style={{ marginTop: "auto" }}>
+            <div style={{ padding: "8px 12px 4px", fontSize: "10px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", borderTop: "1px solid #e5e7eb" }}>
+              Shared
+            </div>
+            <div
+              style={{ ...s.folderRow, ...(selectedFolder === SHARED_VIRTUAL ? s.sharedRowActive : {}), color: selectedFolder === SHARED_VIRTUAL ? "#7c3aed" : "#374151" }}
+              onClick={() => setSelectedFolder(SHARED_VIRTUAL)}
+            >
+              <span style={s.folderName}>Shared with me</span>
+            </div>
           </div>
         </aside>
 
@@ -451,6 +476,11 @@ const Dashboard = ({ user, onLogout }) => {
                             <span style={s.fileName}>{file.name}</span>
                             {file.size != null && (
                               <span style={s.fileSize}>{(file.size / 1024).toFixed(1)} KB</span>
+                            )}
+                            {selectedFolder === SHARED_VIRTUAL && file.shared_by && (
+                              <span style={{ fontSize: "11px", color: "#94a3b8", whiteSpace: "nowrap" }}>
+                                from {file.shared_by}
+                              </span>
                             )}
                           </div>
                           <div style={s.fileActions}>
@@ -650,8 +680,8 @@ const s = {
   fileLeft: { display: "flex", alignItems: "center", gap: "8px", minWidth: 0 },
   fileName: { fontWeight: "600", fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
   fileSize: { fontSize: "11px", color: "#94a3b8", whiteSpace: "nowrap" },
-  fileActions: { display: "flex", gap: "2px", alignItems: "center", flexShrink: 0 },
-  fileBtn: { background: "none", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "600", padding: "4px 6px", color: "#374151" },
+  fileActions: { display: "flex", gap: "4px", alignItems: "center", flexShrink: 0 },
+  fileBtn: { background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "600", padding: "4px 10px", color: "#374151" },
 
   // Share panel
   sharePanel: {

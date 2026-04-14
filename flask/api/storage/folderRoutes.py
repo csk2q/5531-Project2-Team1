@@ -179,7 +179,7 @@ def create_folder():
         return jsonify({
             "message": "Folder created",
             "folder_id": folder_rec.id,
-            "path": folder_rec.path
+            "path": new_folder_name
         }), 201
          
     except FileExistsError:
