@@ -308,6 +308,28 @@ def users_delete():
     db.session.commit()
     return jsonify({"message": "User deleted"}), 200
 
+@usersBlueprint.route("/set-role", methods=["POST"])
+@jwt_required()
+def users_set_role():
+    data = request.get_json(silent=True) or {}
+    current = get_jwt_identity()
+    target = (data.get("username") or current).strip()
+    is_admin = (data.get("is_admin"))
+
+    if target != current and not _is_admin(current):
+        return jsonify(
+            {"message": "Admin privileges required to modify other users"}
+        ), 403
+
+    user = User.query.filter_by(username=target).first()
+    if not user:
+        return jsonify({"message": "User not found"}), 404
+    
+    user.is_admin = is_admin
+    db.session.commit()
+    return jsonify(
+        {"message": "User updated", "user": {"id": user.id, "is_admin": user.is_admin}}
+    ), 200
 
 @usersBlueprint.route("/modify", methods=["POST"])
 @jwt_required()
