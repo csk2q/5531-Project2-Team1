@@ -65,8 +65,20 @@ def add_schedule(id: str, weeks: int, days: int, hours: int, seconds: int, start
 
 @backupScheduleRoutes.route("/api/maintenance/backup/schedule/list", methods=["GET"])
 def list_schedules():
-    allSchedules = BackupSchedule.query.all()
-    return jsonify(allSchedules)
+    schedules = BackupSchedule.query.all()
+    result = []
+    for s in schedules:
+        result.append({
+            "id": s.id,
+            "name": s.name,
+            "start_date": s.start_date.isoformat() if s.start_date else None,
+            "weeks": s.weeks,
+            "days": s.days,
+            "hours": s.hours,
+            "seconds": s.seconds,
+        })
+    return jsonify({"schedules": result})
+
 
 @backupScheduleRoutes.route("/api/maintenance/backup/schedule/create", methods=["POST"])
 def create_schedule():    
