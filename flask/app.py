@@ -115,7 +115,12 @@ def upload_file():
 @app.route("/files", methods=["GET"])
 @jwt_required()
 def list_files():
-    files = File.query.all()
+    current = get_jwt_identity()
+    user = User.query.filter_by(username=current).first()
+    if user and user.is_admin:
+        files = File.query.all()
+    else:
+        files = File.query.filter_by(owner_id=user.id).all() if user else []
 
     return jsonify([{"id": f.id, "name": f.filename, "size": f.size} for f in files])
 
@@ -127,6 +132,14 @@ def delete_file(file_id):
 
     if not file:
         return jsonify({"message": "File not found"}), 404
+
+    # Ownership/admin authorization: only admin or owner can delete
+    current = get_jwt_identity()
+    user = User.query.filter_by(username=current).first()
+    if not user:
+        return jsonify({"message": "Unauthorized"}), 401
+    if not user.is_admin and file.owner_id != user.id:
+        return jsonify({"message": "Not authorized"}), 403
 
     if os.path.exists(file.path):
         os.remove(file.path)
@@ -314,8 +327,10 @@ app.register_blueprint(accountBlueprint)
 
 # Register backup routes
 from api.maintenance.backupRoutes import backupBlueprint
+
 app.register_blueprint(backupBlueprint)
 from api.maintenance.backupScheduleRoutes import backupScheduleRoutes, initScheduler
+
 app.register_blueprint(backupScheduleRoutes)
 initScheduler(app)
 
