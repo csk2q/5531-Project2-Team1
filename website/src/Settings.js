@@ -98,7 +98,7 @@ function Settings({ user, onLogout }) {
     try {
       const response = await authFetch(
         `/api/maintenance/backup/restore/${encodeURIComponent(filename)}`,
-        { method: "DELETE" }
+        { method: "POST" }
       );
       const data = await response.json();
       showBackupMsg(
