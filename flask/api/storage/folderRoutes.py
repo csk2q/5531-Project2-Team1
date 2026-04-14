@@ -329,9 +329,23 @@ def folder_contents():
     if not directory.exists() or not directory.is_dir():
         return jsonify({"message": "Folder not found"}), 404
 
+    # Get folders owned by this user (or all folders for admin)
+    if rel_path:
+        owned_folder_names = None  # inside a folder, show all contents
+    else:
+        if _is_admin(user):
+            owned_folder_names = None  # admin sees all
+        else:
+            owned = Folder.query.filter_by(owner_id=user.id).all()
+            owned_folder_names = {f.name for f in owned}
+
     items = []
     try:
         for entry in os.scandir(directory):
+            # For root listing, filter folders to only owned ones
+            if not rel_path and entry.is_dir() and owned_folder_names is not None:
+                if entry.name not in owned_folder_names:
+                    continue
             info = {
                 "name": entry.name,
                 "is_dir": entry.is_dir(),
