@@ -268,11 +268,20 @@ def delete_folder():
         return jsonify({"message": "Folder not found"}), 404
 
     try:
+        p = Path(target)
+        files = [str(p.joinpath(child).resolve()) for child in p.iterdir() if child.is_file()]
+        dbFiles = File.query.all()
+        for dbFile in dbFiles:
+            for file in files:
+                if str(file).endswith(dbFile.filename):
+                    db.session.delete(dbFile)
+        db.session.commit()
         if recursive:
             shutil.rmtree(target)
         else:
             # Only remove if empty
-            os.rmdir(target)
+            shutil.rmtree(target)
+            # os.rmdir(target)
     except OSError as exc:
         # Typically raised if directory is not empty when not recursive
         return jsonify({"message": "Failed to delete folder", "error": str(exc)}), 400
