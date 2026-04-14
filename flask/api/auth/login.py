@@ -68,7 +68,7 @@ def login():
     response = {
         "access_token": access_token,
         "token_type": "Bearer",
-        "user": {"id": user.id, "username": user.username, "is_admin": user.is_admin},
+        "user": {"id": user.id, "username": user.username},
     }
 
     exp = _expires_in_seconds()

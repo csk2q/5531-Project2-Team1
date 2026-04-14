@@ -69,9 +69,8 @@ def register() -> Any:
     if User.query.filter_by(username=username).first() is not None:
         return jsonify({"message": "User already exists"}), 409
 
-    # Create user (first user becomes admin)
-    is_first_user = User.query.count() == 0
-    user = User(username=username, is_admin=is_first_user)
+    # Create user
+    user = User(username=username)
     user.set_password(password)
 
     try:
