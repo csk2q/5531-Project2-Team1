@@ -125,16 +125,26 @@ def list_files():
     else:
         files = File.query.filter_by(owner_id=user.id).all() if user else []
 
+    permissions = Permission.query.where(Permission.user_id == user.id).all()
+    for perm in permissions:
+        for file in File.query.all():
+            if file.id == perm.file_id:
+                files.append(file)
+
     def file_dict(f):
         owner = User.query.get(f.owner_id) if f.owner_id else None
         return {"id": f.id, "name": f.filename, "size": f.size, "owner": owner.username if owner else "—"}
     return jsonify([file_dict(f) for f in files])
 
 
-@app.route("/delete/<int:file_id>", methods=["DELETE"])
+@app.route("/delete/<string:file_id>", methods=["DELETE"])
 @jwt_required()
 def delete_file(file_id):
-    file = File.query.get(file_id)
+    files = File.query.all()
+    theFile = None
+    for file in files:
+        if file.filename == file_id:
+            theFile = file
 
     if not file:
         return jsonify({"message": "File not found"}), 404
